@@ -2,26 +2,19 @@
 
 #include <stdexcept>
 
-void Assembler::insertLocalSymbol(string symbol)
-{
-    if (currentSection == UND)
-    {
+void Assembler::insertLocalSymbol(const string &symbol) {
+    if (currentSection == UND) {
         return;
     }
 
     SymbolDefinition *sd = symbolTable.get(symbol);
 
-    if (sd != nullptr && sd->section == UND)
-    {
+    if (sd != nullptr && sd->section == UND) {
         sd->section = currentSection;
         sd->symbolValue = locationCounter;
-    }
-    else if (sd != nullptr)
-    {
+    } else if (sd != nullptr) {
         throw invalid_argument("Symbol was already defined!");
-    }
-    else
-    {
+    } else {
         SymbolDefinition nsd{};
         nsd.name = symbol;
         nsd.section = currentSection;
@@ -31,21 +24,15 @@ void Assembler::insertLocalSymbol(string symbol)
     }
 }
 
-void Assembler::insertAbsoluteSymbol(string symbol, uint32_t symbolValue)
-{
+void Assembler::insertAbsoluteSymbol(const string &symbol, uint32_t symbolValue) {
     SymbolDefinition *sd = symbolTable.get(symbol);
 
-    if (sd != nullptr && sd->section != ABS && sd->section != UND)
-    {
+    if (sd != nullptr && sd->section != ABS && sd->section != UND) {
         throw invalid_argument("Symbol was already defined!");
-    }
-    else if (sd != nullptr)
-    {
+    } else if (sd != nullptr) {
         sd->section = ABS;
         sd->symbolValue = symbolValue;
-    }
-    else
-    {
+    } else {
         SymbolDefinition nsd{};
         nsd.name = symbol;
         nsd.section = ABS;
@@ -55,21 +42,16 @@ void Assembler::insertAbsoluteSymbol(string symbol, uint32_t symbolValue)
     }
 }
 
-void Assembler::insertGlobalSymbol(string symbol)
-{
-    if (pass == 2)
-    {
+void Assembler::insertGlobalSymbol(const string &symbol) {
+    if (pass == 2) {
         return; // do nothing
     }
 
     SymbolDefinition *sd = symbolTable.get(symbol);
 
-    if (sd != nullptr)
-    {
+    if (sd != nullptr) {
         sd->globalDef = true;
-    }
-    else
-    {
+    } else {
         SymbolDefinition nsd;
         nsd.globalDef = true;
         nsd.name = symbol;
@@ -78,15 +60,12 @@ void Assembler::insertGlobalSymbol(string symbol)
     }
 }
 
-void Assembler::addSymbolUsage(string symbol)
-{
-    if (currentSection == UND)
-    {
+void Assembler::addSymbolUsage(const string &symbol) {
+    if (currentSection == UND) {
         return;
     }
 
-    if (symbolTable.get(symbol) != nullptr)
-    {
+    if (symbolTable.get(symbol) != nullptr) {
         // symbol was already defined
         return;
     }
@@ -97,20 +76,15 @@ void Assembler::addSymbolUsage(string symbol)
     symbolTable.insertSymbolDefinition(sd);
 }
 
-void Assembler::registerSection(string section)
-{
-    if (pass == 1)
-    {
+void Assembler::registerSection(const string &section) {
+    if (pass == 1) {
         insertSection(section);
-    }
-    else if (pass == 2)
-    {
+    } else if (pass == 2) {
         currentSection++; // next section
     }
 }
 
-void Assembler::insertSection(string section)
-{
+void Assembler::insertSection(const string &section) {
     SectionDefinition sd{};
 
     sd.name = section;
@@ -124,17 +98,24 @@ void Assembler::insertSection(string section)
     insertLocalSymbol(section);
 }
 
-void Assembler::reserveSpace(string str)
-{
+void Assembler::reserveSpace(const string &str) {
     locationCounter += str.size() - 2;
 }
 
-void Assembler::endAssembly()
-{
+void Assembler::endAssembly() {
     sectionTable.closeLastSection(locationCounter);
 }
 
-ostream &operator<<(ostream &os, const Assembler &as)
-{
+ostream &operator<<(ostream &os, const Assembler &as) {
     return os << endl << as.sectionTable << endl << as.symbolTable << endl;
+}
+
+bool Assembler::nextPass() {
+    if (pass == 2)
+        return false;
+
+    currentSection = UND;
+    locationCounter = 0;
+    pass = pass + 1;
+    return true;
 }

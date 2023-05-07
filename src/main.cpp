@@ -4,21 +4,22 @@
 
 using namespace std;
 
-Assembler as;
+Assembler *as;
 
 extern int yyparse();
+
 extern void yyerror(const char *);
+
 extern FILE *yyin;
 
-int main(int, char **)
-{
-    if (as.nextPass())
-    {
+int main(int, char **) {
+    as = new Assembler();
+
+    if (as->nextPass()) {
         // open a file handle to a particular file:
         FILE *myfile = fopen("predavanja.s", "r");
         // make sure it's valid:
-        if (!myfile)
-        {
+        if (!myfile) {
             cout << "Can't open file!" << endl;
             return -1;
         }
@@ -26,15 +27,15 @@ int main(int, char **)
         yyin = myfile;
 
         // Parse through the input:
-        try
-        {
+        try {
             yyparse();
         }
-        catch (const exception &e)
-        {
+        catch (const exception &e) {
             yyerror(e.what());
         }
     }
 
-    cout << as << endl;
+    cout << *as << endl;
+
+    delete as;
 }

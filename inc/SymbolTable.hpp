@@ -10,8 +10,7 @@
 
 using namespace std;
 
-struct SymbolDefinition
-{
+struct SymbolDefinition {
     uint32_t symbolValue = 0;
     uint32_t section = UND;
     bool globalDef = false;
@@ -20,11 +19,9 @@ struct SymbolDefinition
     friend ostream &operator<<(ostream &os, const SymbolDefinition &);
 };
 
-class SymbolTable
-{
-  public:
-    SymbolDefinition *get(const string &s)
-    {
+class SymbolTable {
+public:
+    SymbolDefinition *get(const string &s) {
         if (symbolMappings.find(s) == symbolMappings.end())
             return nullptr;
 
@@ -35,9 +32,9 @@ class SymbolTable
 
     friend ostream &operator<<(ostream &os, const SymbolTable &);
 
-  private:
+private:
     uint32_t lastAdded = 0;
 
-    unordered_map<string, int> symbolMappings;
+    unordered_map<string, uint32_t> symbolMappings;
     vector<SymbolDefinition> symbolDefinitions;
 };

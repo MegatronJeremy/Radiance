@@ -5,34 +5,31 @@
 
 #include "Constants.hpp"
 
-class Assembler
-{
-  public:
-    void insertLocalSymbol(string symbol);
-    void insertAbsoluteSymbol(string symbol, uint32_t symbolValue);
-    void insertGlobalSymbol(string symbol);
-    void registerSection(string section);
-    void insertSection(string section);
-    void reserveSpace(string str);
-    void addSymbolUsage(string symbol);
+class Assembler {
+public:
+    void insertLocalSymbol(const string &symbol);
+
+    void insertAbsoluteSymbol(const string &symbol, uint32_t symbolValue);
+
+    void insertGlobalSymbol(const string &symbol);
+
+    void registerSection(const string &section);
+
+    void insertSection(const string &section);
+
+    void reserveSpace(const string &str);
+
+    void addSymbolUsage(const string &symbol);
+
     void endAssembly();
 
-    int locationCounter = 0;
-
-    bool nextPass()
-    {
-        if (pass == 2)
-            return false;
-
-        currentSection = UND;
-        locationCounter = 0;
-        pass = pass + 1;
-        return true;
-    }
+    bool nextPass();
 
     friend ostream &operator<<(ostream &os, const Assembler &as);
 
-  private:
+    uint32_t locationCounter = 0;
+
+private:
     SectionTable sectionTable;
     SymbolTable symbolTable;
 

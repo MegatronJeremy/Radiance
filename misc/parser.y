@@ -6,7 +6,7 @@
 
   extern int yylex();
   extern int lineNum;
-  extern Assembler as;
+  extern Assembler *as;
 
 	void yyerror(const char*);
 %}
@@ -46,7 +46,7 @@
 %%
 
 program:
-    statements sentinel { as.endAssembly(); YYACCEPT; }
+    statements sentinel { as->endAssembly(); YYACCEPT; }
 
 statements: 
     statement
@@ -54,10 +54,10 @@ statements:
     ;
 
 statement:
-      label instruction ENDL  { as.locationCounter += 4; }
+      label instruction ENDL  { as->locationCounter += 4; }
     | label directive ENDL
     | label ENDL
-    | instruction ENDL        { as.locationCounter += 4; }
+    | instruction ENDL        { as->locationCounter += 4; }
     | directive ENDL
     | ENDL
     ;
@@ -67,18 +67,18 @@ sentinel:
     | END;
 
 label:
-      SYMBOL ':' { as.insertLocalSymbol($1); free($1); } 
+      SYMBOL ':' { as->insertLocalSymbol($1); free($1); }
     ;
 
 
 directive:
       GLOBAL global_symbol_list
     | EXTERN extern_symbol_list
-    | SECTION SYMBOL                 {as.registerSection($2); free($2);}
-    | WORD initializer_list          {as.locationCounter += 4;}
-    | SKIP LITERAL                   {as.locationCounter += $2;}
-    | ASCII STRING                   {as.reserveSpace($2); free($2);}
-    | EQU SYMBOL ',' ival_expression {as.insertAbsoluteSymbol($2, $4); free($2);}
+    | SECTION SYMBOL                 {as->registerSection($2); free($2);}
+    | WORD initializer_list          {as->locationCounter += 4;}
+    | SKIP LITERAL                   {as->locationCounter += $2;}
+    | ASCII STRING                   {as->reserveSpace($2); free($2);}
+    | EQU SYMBOL ',' ival_expression {as->insertAbsoluteSymbol($2, $4); free($2);}
     ;
 
 instruction: 
@@ -111,20 +111,20 @@ instruction:
     ; 
 
 initializer_list:
-      SYMBOL                        {as.addSymbolUsage($1); free($1);}
+      SYMBOL                        {as->addSymbolUsage($1); free($1);}
     | LITERAL
-    | initializer_list ',' SYMBOL   {as.addSymbolUsage($3); free($3);}
+    | initializer_list ',' SYMBOL   {as->addSymbolUsage($3); free($3);}
     | initializer_list ',' LITERAL
     ;
 
 global_symbol_list:
-      SYMBOL                        {as.insertGlobalSymbol($1); free($1);}
-    | global_symbol_list ',' SYMBOL {as.insertGlobalSymbol($3); free($3);} 
+      SYMBOL                        {as->insertGlobalSymbol($1); free($1);}
+    | global_symbol_list ',' SYMBOL {as->insertGlobalSymbol($3); free($3);}
     ;
 
 extern_symbol_list:
-      SYMBOL                        {as.addSymbolUsage($1); free($1);}
-    | extern_symbol_list ',' SYMBOL {as.addSymbolUsage($3); free($3);} 
+      SYMBOL                        {as->addSymbolUsage($1); free($1);}
+    | extern_symbol_list ',' SYMBOL {as->addSymbolUsage($3); free($3);}
     ;
 
 branch_expression:
@@ -146,18 +146,18 @@ ival_expression:
 
 data_operand:
       '$' LITERAL 
-    | '$' SYMBOL  {as.addSymbolUsage($2); free($2);}
+    | '$' SYMBOL  {as->addSymbolUsage($2); free($2);}
     | LITERAL
-    | SYMBOL      {as.addSymbolUsage($1); free($1);}
+    | SYMBOL      {as->addSymbolUsage($1); free($1);}
     | reg_val
     | '[' reg_val ']'
     | '[' reg_val '+' LITERAL ']'
-    | '[' reg_val '+' SYMBOL ']'  {as.addSymbolUsage($4); free($4);}
+    | '[' reg_val '+' SYMBOL ']'  {as->addSymbolUsage($4); free($4);}
     ;
 
 branch_operand:
       LITERAL
-    | SYMBOL {as.addSymbolUsage($1); free($1);}
+    | SYMBOL {as->addSymbolUsage($1); free($1);}
     ;
 
 reg_val:

@@ -8,8 +8,7 @@
 
 using namespace std;
 
-struct SectionDefinition
-{
+struct SectionDefinition {
     uint32_t base = 0;
     uint32_t length = 0;
     string name;
@@ -17,18 +16,17 @@ struct SectionDefinition
     friend ostream &operator<<(ostream &os, const SectionDefinition &sd);
 };
 
-class SectionTable
-{
-  public:
+class SectionTable {
+public:
     SectionTable();
 
-    int insertSectionDefinition(SectionDefinition &);
+    uint32_t insertSectionDefinition(SectionDefinition &sd);
 
     void closeLastSection(uint32_t endLocation);
 
     friend ostream &operator<<(ostream &os, const SectionTable &st);
 
-  private:
+private:
     unordered_map<string, uint32_t> sectionMappings;
     vector<SectionDefinition> sectionDefinitions;
 

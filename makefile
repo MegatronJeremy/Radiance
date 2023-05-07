@@ -2,7 +2,8 @@ SHELL=/bin/bash
 
 INC=inc
 SRC=src
-SRCS=$(SRC)/Assembler.cpp
+MSC=misc
+SRCS=$(MSC)/parser.c $(MSC)/lexer.c $(SRC)/main.cpp $(SRC)/SectionTable.cpp $(SRC)/SymbolTable.cpp $(SRC)/Assembler.cpp
 INCS=$(INC)/Assembler.hpp $(INC)/SectionTable.hpp $(INC)/SymbolTable.hpp
 CC=g++
 
