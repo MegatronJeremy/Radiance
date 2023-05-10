@@ -1,11 +1,11 @@
 %{
-    #include "parser.h"
+    #include "parser.hpp"
     #include <iostream>
     using namespace std;
     int lineNum = 1;
 %}
 
-%option outfile="lexer.c" header-file="lexer.h"
+%option outfile="lexer.cpp" header-file="lexer.hpp"
 
 %option noyywrap
 

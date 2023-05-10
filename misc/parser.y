@@ -11,8 +11,8 @@
 	void yyerror(const char*);
 %}
 
-%output  "parser.c"
-%defines "parser.h"
+%output  "parser.cpp"
+%defines "parser.hpp"
 
 %union {
     u_int32_t ival;

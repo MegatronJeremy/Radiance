@@ -1,7 +1,7 @@
-/misc/lexer.c
-/misc/lexer.h
-/misc/parser.c
-/misc/parser.h
+/misc/lexer.c*
+/misc/lexer.h*
+/misc/parser.c*
+/misc/parser.h*
 /misc/parser
 
 cmake-build-*/
