@@ -65,7 +65,7 @@ enum {
 // https://en.wikipedia.org/wiki/Executable_and_Linkable_Format
 int main() {
     struct ElfFile {
-        Elf32_Ehdr elfHeader;                    //       [  0 -  63] :  1 * sizeof(Elf64_Ehdr) = 1 * 64
+        Elf64_Ehdr elfHeader;                    //       [  0 -  63] :  1 * sizeof(Elf64_Ehdr) = 1 * 64
         uint8_t text[SECTION_SIZE_TEXT];         //       [ 64 - 109] : 46 * sizeof(uint8_t) = 46 * 1
         uint8_t data[SECTION_SIZE_DATA];         //       [110 - 123] : 14 * sizeof(uint8_t) = 14 * 1
         uint8_t bss[SECTION_SIZE_BSS];           //

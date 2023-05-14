@@ -5,18 +5,27 @@
 .extern my_counter
 .global handler
 .section my_code_handler
+.skip 8
 handler:
+    .word 0xABCD, 0xBC, 0xAABBCCDD
+    .skip 2
     push %r1
+    halt
     push %r2
     csrrd %cause, %r1
+    int
+    .ascii "LIGHT IS FADING FROM OUR WORLD"
     ld $2, %r2
     beq %r1, %r2, my_isr_timer
+    .word handler
     ld $3, %r2
     beq %r1, %r2, my_isr_terminal
 # obrada prekida od tajmera
 my_isr_timer:
     ld $ascii_code , %r1
+    halt
     st %r1, term_out
+    int
     jmp finish
 # obrada prekida od terminala
 my_isr_terminal:
@@ -29,5 +38,9 @@ my_isr_terminal:
 finish:
     pop %r2
     pop %r1
+    int
     iret
+    push %r15
+    push %pc
+    pop %sp
 .end

@@ -1,44 +1,63 @@
 #include "../inc/Assembler.hpp"
+#include "../inc/Ins32.hpp"
 
 #include <stdexcept>
+#include <cstring>
 
-void Assembler::insertLocalSymbol(const string &symbol) {
-    if (currentSection == UND) {
-        return;
+Assembler::Assembler() {
+    Elf32_Sym nsd{};
+    nsd.st_shndx = SHN_UNDEF;
+    nsd.st_info = ELF32_ST_INFO(STB_LOCAL, STT_SECTION);
+
+    symbolTable.insertSymbolDefinition(nsd, "UND");
+
+    // relocatable file
+    elfHeader.e_type = ET_REL;
+}
+
+Elf32_Sym *Assembler::insertLocalSymbol(const string &symbol) {
+    if (pass == 2) {
+        // do nothing
+        return nullptr;
     }
 
-    SymbolDefinition *sd = symbolTable.get(symbol);
+    if (currentSection == SHN_UNDEF) {
+        return nullptr;
+    }
 
-    if (sd != nullptr && sd->section == UND) {
-        sd->section = currentSection;
-        sd->symbolValue = locationCounter;
+    Elf32_Sym *sd = symbolTable.get(symbol);
+
+    if (sd != nullptr && sd->st_shndx == SHN_UNDEF) {
+        sd->st_shndx = currentSection;
+        sd->st_value = locationCounter;
+
+        return sd;
     } else if (sd != nullptr) {
         throw invalid_argument("Symbol was already defined!");
     } else {
-        SymbolDefinition nsd{};
-        nsd.name = symbol;
-        nsd.section = currentSection;
-        nsd.symbolValue = locationCounter;
+        Elf32_Sym nsd{};
+        nsd.st_shndx = currentSection;
+        nsd.st_value = locationCounter;
+        nsd.st_info = ELF32_ST_INFO(STB_LOCAL, STT_NOTYPE); // default values
 
-        symbolTable.insertSymbolDefinition(nsd);
+        return symbolTable.insertSymbolDefinition(nsd, symbol);
     }
 }
 
 void Assembler::insertAbsoluteSymbol(const string &symbol, uint32_t symbolValue) {
-    SymbolDefinition *sd = symbolTable.get(symbol);
+    Elf32_Sym *sd = symbolTable.get(symbol);
 
-    if (sd != nullptr && sd->section != ABS && sd->section != UND) {
+    if (sd != nullptr && sd->st_shndx != SHN_ABS && sd->st_shndx != SHN_UNDEF) {
         throw invalid_argument("Symbol was already defined!");
     } else if (sd != nullptr) {
-        sd->section = ABS;
-        sd->symbolValue = symbolValue;
+        sd->st_shndx = SHN_ABS;
+        sd->st_value = symbolValue;
     } else {
-        SymbolDefinition nsd{};
-        nsd.name = symbol;
-        nsd.section = ABS;
-        nsd.symbolValue = symbolValue;
+        Elf32_Sym nsd{};
+        nsd.st_shndx = SHN_ABS;
+        nsd.st_value = symbolValue;
 
-        symbolTable.insertSymbolDefinition(nsd);
+        symbolTable.insertSymbolDefinition(nsd, symbol);
     }
 }
 
@@ -47,21 +66,24 @@ void Assembler::insertGlobalSymbol(const string &symbol) {
         return; // do nothing
     }
 
-    SymbolDefinition *sd = symbolTable.get(symbol);
+    Elf32_Sym *sd = symbolTable.get(symbol);
 
     if (sd != nullptr) {
-        sd->globalDef = true;
+        sd->st_info = ELF32_ST_INFO(STB_GLOBAL, ELF32_ST_BIND(sd->st_info));
     } else {
-        SymbolDefinition nsd;
-        nsd.globalDef = true;
-        nsd.name = symbol;
+        Elf32_Sym nsd;
+        nsd.st_info = ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE); // everything else is default
 
-        symbolTable.insertSymbolDefinition(nsd);
+        symbolTable.insertSymbolDefinition(nsd, symbol);
     }
 }
 
 void Assembler::addSymbolUsage(const string &symbol) {
-    if (currentSection == UND) {
+    if (pass == 2) {
+        return; // do nothing?
+    }
+
+    if (currentSection == SHN_UNDEF) {
         return;
     }
 
@@ -70,10 +92,9 @@ void Assembler::addSymbolUsage(const string &symbol) {
         return;
     }
 
-    SymbolDefinition sd{}; // globalDef is false at this point
-    sd.name = symbol;
+    Elf32_Sym sd{}; // globalDef is false at this point
 
-    symbolTable.insertSymbolDefinition(sd);
+    symbolTable.insertSymbolDefinition(sd, symbol);
 }
 
 void Assembler::registerSection(const string &section) {
@@ -85,21 +106,19 @@ void Assembler::registerSection(const string &section) {
 }
 
 void Assembler::insertSection(const string &section) {
-    SectionDefinition sd{};
+    // insert as symbol
+    currentSection++;
+    Elf32_Sym *sym = insertLocalSymbol(section);
+    sym->st_info = ELF32_ST_INFO(ELF32_ST_BIND(sym->st_info), STT_SECTION);
 
-    sd.name = section;
-    sd.base = locationCounter;
-    sd.length = 0;
+    // insert as section
+    Elf32_Shdr sd{};
+    sd.sh_addr = locationCounter;
+    sd.sh_size = 0;
 
     locationCounter = 0;
 
-    currentSection = sectionTable.insertSectionDefinition(sd);
-
-    insertLocalSymbol(section);
-}
-
-void Assembler::reserveSpace(const string &str) {
-    locationCounter += str.size() - 2;
+    sectionTable.insertSectionDefinition(sd, section);
 }
 
 void Assembler::endAssembly() {
@@ -107,15 +126,95 @@ void Assembler::endAssembly() {
 }
 
 ostream &operator<<(ostream &os, const Assembler &as) {
-    return os << endl << as.sectionTable << endl << as.symbolTable << endl;
+    return os << endl << as.sectionTable << endl << as.symbolTable << endl << as.relocationTable << endl;
 }
 
 bool Assembler::nextPass() {
     if (pass == 2)
         return false;
 
-    currentSection = UND;
+    if (pass == 1) {
+        prepareSecondPass();
+    }
+
+    currentSection = SHN_UNDEF;
     locationCounter = 0;
     pass = pass + 1;
     return true;
+}
+
+void Assembler::initCurrentLocation(const string &symbol) {
+    incLocationCounter();
+    if (pass == 1) {
+        addSymbolUsage(symbol);
+    } else {
+        Elf32_Word literal = generateRelocation(symbol);
+        outputFile.write((char *) &literal, sizeof(literal));
+    }
+}
+
+void Assembler::initCurrentLocation(Elf32_Word literal) {
+    incLocationCounter();
+    if (pass == 1) {
+        return; // do nothing
+    } else {
+        outputFile.write((char *) &literal, sizeof(literal));
+    }
+}
+
+void Assembler::initAscii(string ascii) {
+    // remove double quotes
+    ascii = ascii.substr(1, ascii.size() - 2);
+
+    Elf32_Word size = ascii.size();
+    incLocationCounter(size);
+
+    if (pass == 1) {
+        return; // do nothing
+    } else {
+        outputFile << ascii;
+    }
+}
+
+void Assembler::incLocationCounter(Elf32_Word bytes) {
+    locationCounter += bytes;
+}
+
+void Assembler::prepareSecondPass() {
+    outputFile.open("a.out", ios::out | ios::binary);
+
+    outputFile.write((char *) &elfHeader, sizeof(elfHeader));
+}
+
+Elf32_Word Assembler::generateRelocation(const string &symbol) {
+    // for generating R_PC_32S
+    Elf32_Sym *sd = symbolTable.get(symbol);
+
+    Elf32_Rela rd;
+
+    rd.r_addend = 0;
+    rd.r_info = ELF32_R_INFO(sd->st_name, R_X86_64_32S);
+    rd.r_offset = locationCounter;
+
+    relocationTable.insertRelocationEntry(rd);
+
+    return sd->st_value;
+}
+
+void Assembler::zeroInitSpace(Elf32_Word bytes) {
+    incLocationCounter(bytes);
+
+    char buff[bytes];
+    memset(buff, 0, sizeof(buff));
+    outputFile.write(buff, bytes);
+}
+
+void Assembler::insertInstruction(yytokentype token, const vector<int16_t> &fields) {
+    if (pass == 1) {
+        return; // do nothing
+    }
+
+    Ins32 ins32 = Instruction32::getInstruction(token, fields);
+
+    outputFile.write((char *) &ins32, sizeof(Ins32));
 }

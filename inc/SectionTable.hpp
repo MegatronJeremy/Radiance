@@ -4,31 +4,21 @@
 #include <unordered_map>
 #include <vector>
 
-#include "Constants.hpp"
+#include "Elf32.hpp"
 
 using namespace std;
 
-struct SectionDefinition {
-    uint32_t base = 0;
-    uint32_t length = 0;
-    string name;
-
-    friend ostream &operator<<(ostream &os, const SectionDefinition &sd);
-};
 
 class SectionTable {
 public:
     SectionTable();
 
-    uint32_t insertSectionDefinition(SectionDefinition &sd);
+    void insertSectionDefinition(Elf32_Shdr sd, const string &name);
 
-    void closeLastSection(uint32_t endLocation);
+    void closeLastSection(Elf32_Addr endLocation);
 
     friend ostream &operator<<(ostream &os, const SectionTable &st);
 
 private:
-    unordered_map<string, uint32_t> sectionMappings;
-    vector<SectionDefinition> sectionDefinitions;
-
-    uint32_t currentSection = UND;
+    vector<Elf32_Shdr> sectionDefinitions;
 };

@@ -1,13 +1,11 @@
-//
-// Created by xparh on 5/10/2023.
-//
-
-#ifndef PROJEKAT_ELF32_HPP
-#define PROJEKAT_ELF32_HPP
+#pragma once
 
 /* Standard ELF types.  */
 
 #include <cstdint>
+#include <iostream>
+
+using namespace std;
 
 /* Type for a 16-bit quantity.  */
 typedef uint16_t Elf32_Half;
@@ -89,18 +87,18 @@ struct Elf32_Rela {
     Elf32_Sword r_addend{};        /* Addend */
 };
 
-/* How to extract and insert information held in the r_info field.  */
-
-#define ELF32_R_SYM(val)        ((val) >> 8)
-#define ELF32_R_TYPE(val)        ((val) & 0xff)
-#define ELF32_R_INFO(sym, type)        (((sym) << 8) + ((type) & 0xff))
-
 /* Relocation types.  */
 
 #define R_X86_64_NONE        0    /* No reloc */
 #define R_X86_64_PC32        2    /* PC relative 32 bit signed */
 #define R_X86_64_32        10    /* Direct 32 bit zero extended */
 #define R_X86_64_32S        11    /* Direct 32 bit sign extended */
+
+/* How to extract and insert information held in the r_info field.  */
+
+#define ELF32_R_SYM(val)        ((val) >> 8)
+#define ELF32_R_TYPE(val)        ((val) & 0xff)
+#define ELF32_R_INFO(sym, type)        (((sym) << 8) + ((type) & 0xff))
 
 
 /* Section header.  */
@@ -117,6 +115,11 @@ struct Elf32_Shdr {
     Elf32_Word sh_addralign{};        /* Section alignment */
     Elf32_Word sh_entsize{};        /* Entry size if section holds table */
 };
+
+/* Special section indices.  */
+
+#define SHN_UNDEF    0        /* Undefined section */
+#define SHN_ABS        0xfff1        /* Associated symbol is absolute */
 
 /* Legal values for sh_type (section type).  */
 
@@ -146,6 +149,3 @@ struct ELF_File {
     uint8_t shstrtab[8]{};
     Elf32_Shdr sectionHeaderTable[8];
 };
-
-
-#endif //PROJEKAT_ELF32_HPP

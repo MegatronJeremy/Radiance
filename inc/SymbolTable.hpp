@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Constants.hpp"
+#include "Elf32.hpp"
 
 #include <string>
 #include <unordered_map>
@@ -10,31 +10,17 @@
 
 using namespace std;
 
-struct SymbolDefinition {
-    uint32_t symbolValue = 0;
-    uint32_t section = UND;
-    bool globalDef = false;
-    string name;
-
-    friend ostream &operator<<(ostream &os, const SymbolDefinition &);
-};
-
 class SymbolTable {
 public:
-    SymbolDefinition *get(const string &s) {
-        if (symbolMappings.find(s) == symbolMappings.end())
-            return nullptr;
+    Elf32_Sym *get(const string &s);
 
-        return &symbolDefinitions[symbolMappings[s]];
-    }
-
-    void insertSymbolDefinition(SymbolDefinition &);
+    Elf32_Sym *insertSymbolDefinition(Elf32_Sym &sd, const string &name);
 
     friend ostream &operator<<(ostream &os, const SymbolTable &);
 
 private:
-    uint32_t lastAdded = 0;
+    // strtab
+    unordered_map<string, Elf32_Word> symbolMappings;
 
-    unordered_map<string, uint32_t> symbolMappings;
-    vector<SymbolDefinition> symbolDefinitions;
+    vector<Elf32_Sym> symbolDefinitions;
 };

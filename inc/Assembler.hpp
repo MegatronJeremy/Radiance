@@ -1,39 +1,67 @@
 #pragma once
 
+#include <fstream>
 #include "SectionTable.hpp"
 #include "SymbolTable.hpp"
-
-#include "Constants.hpp"
+#include "RelocationTable.hpp"
+#include "../misc/parser.hpp"
 
 class Assembler {
 public:
-    void insertLocalSymbol(const string &symbol);
+    Assembler();
 
-    void insertAbsoluteSymbol(const string &symbol, uint32_t symbolValue);
+    Elf32_Sym *insertLocalSymbol(const string &symbol);
+
+    void insertAbsoluteSymbol(const string &symbol, Elf32_Addr symbolValue);
 
     void insertGlobalSymbol(const string &symbol);
+
+    void initCurrentLocation(const string &symbol);
+
+    void initCurrentLocation(Elf32_Word literal);
+
+    void initAscii(string ascii);
+
+    void zeroInitSpace(Elf32_Word bytes);
+
+    void incLocationCounter(Elf32_Word bytes = 4);
 
     void registerSection(const string &section);
 
     void insertSection(const string &section);
 
-    void reserveSpace(const string &str);
-
     void addSymbolUsage(const string &symbol);
+
+    void insertInstruction(yytokentype token, const vector<int16_t> &fields = {});
+
+    Elf32_Word generateRelocation(const string &symbol);
 
     void endAssembly();
 
     bool nextPass();
 
+    void prepareSecondPass();
+
+
     friend ostream &operator<<(ostream &os, const Assembler &as);
 
-    uint32_t locationCounter = 0;
+
+    ~Assembler() {
+        cout << *this << endl;
+        outputFile.close();
+    }
 
 private:
+    Elf32_Ehdr elfHeader;
+
+    ofstream outputFile;
+
     SectionTable sectionTable;
     SymbolTable symbolTable;
+    RelocationTable relocationTable;
 
-    uint32_t currentSection = UND;
+    uint32_t currentSection = SHN_UNDEF;
+    uint32_t locationCounter = 0;
 
     int pass = 0;
 };

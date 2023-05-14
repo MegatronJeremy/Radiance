@@ -1,5 +1,5 @@
 CC=g++
-SRCS=parser.cpp lexer.cpp ../src/main.cpp ../src/SectionTable.cpp ../src/SymbolTable.cpp ../src/Assembler.cpp
+SRCS=parser.cpp lexer.cpp ../src/main.cpp ../src/SectionTable.cpp ../src/SymbolTable.cpp ../src/Assembler.cpp ../src/RelocationTable.cpp ../src/Ins32.cpp
 
 all: $(SRCS)
 	$(CC) $(SRCS) -lfl -o parser

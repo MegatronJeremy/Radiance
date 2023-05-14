@@ -1,20 +1,31 @@
 #include "../inc/SymbolTable.hpp"
 
-void SymbolTable::insertSymbolDefinition(SymbolDefinition &sd) {
-    symbolMappings[sd.name] = symbolDefinitions.size();
+Elf32_Sym *SymbolTable::insertSymbolDefinition(Elf32_Sym &sd, const string &name) {
+    symbolMappings[name] = sd.st_name = symbolDefinitions.size();
     symbolDefinitions.emplace_back(sd);
-    lastAdded += 1;
+    return &symbolDefinitions.back();
 }
 
-ostream &operator<<(ostream &os, const SymbolDefinition &sd) {
-    return os << sd.name << " " << sd.section << " " << sd.symbolValue << " " << sd.globalDef;
+ostream &operator<<(ostream &os, const Elf32_Sym &sd) {
+    return os << sd.st_shndx << " " << sd.st_value << " " << ELF32_ST_BIND(sd.st_info) << " "
+              << ELF32_ST_TYPE(sd.st_info);
 }
 
 ostream &operator<<(ostream &os, const SymbolTable &st) {
     os << "Symbol table: " << endl;
-    int i = 0;
-    for (const SymbolDefinition &sd: st.symbolDefinitions) {
-        os << sd << " : " << i++ << endl;
+    for (const Elf32_Sym &sd: st.symbolDefinitions) {
+        os << sd << ": " << sd.st_name << endl;
+    }
+    os << endl << "Symbol mappings: " << endl;
+    for (auto &it: st.symbolMappings) {
+        cout << it.first << " " << it.second << endl;
     }
     return os;
+}
+
+Elf32_Sym *SymbolTable::get(const string &s) {
+    if (symbolMappings.find(s) == symbolMappings.end())
+        return nullptr;
+
+    return &symbolDefinitions[symbolMappings[s]];
 }

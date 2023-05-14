@@ -1,23 +1,24 @@
 #include "../inc/Assembler.hpp"
 
 #include <iostream>
+#include <memory>
 
 using namespace std;
 
-Assembler *as;
-
-extern int yyparse();
+unique_ptr<Assembler> as;
 
 extern void yyerror(const char *);
 
 extern FILE *yyin;
 
-int main(int, char **) {
-    as = new Assembler();
+int lineNum;
 
-    if (as->nextPass()) {
+int main(int, char **) {
+    as = make_unique<Assembler>();
+
+    while (as->nextPass()) {
         // open a file handle to a particular file:
-        FILE *myfile = fopen("predavanja.s", "r");
+        FILE *myfile = fopen("sample.s", "r");
         // make sure it's valid:
         if (!myfile) {
             cout << "Can't open file!" << endl;
@@ -26,16 +27,16 @@ int main(int, char **) {
         // Set lex to read from it instead of defaulting to STDIN:
         yyin = myfile;
 
+        // Reset line num
+        lineNum = 1;
+
         // Parse through the input:
         try {
             yyparse();
         }
         catch (const exception &e) {
             yyerror(e.what());
+            break;
         }
     }
-
-    cout << *as << endl;
-
-    delete as;
 }

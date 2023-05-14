@@ -2,7 +2,8 @@
     #include "parser.hpp"
     #include <iostream>
     using namespace std;
-    int lineNum = 1;
+    extern int lineNum;
+    #include "../inc/Ins32.hpp"
 %}
 
 %option outfile="lexer.cpp" header-file="lexer.hpp"
@@ -48,14 +49,18 @@ CSRRD "csrrd"
 CSRWR "csrwr"
 
 /* registers */
-CSRX    (%handler)|(%status)|(%cause)
-GPRX    (%r1[0-5])|(%r[0-9])|(%sp)|(%pc)
+GPRX    (%r1[0-5])|(%r[0-9])
+SP  "%sp"
+PC  "%pc"
+CSR0 "%status"
+CSR1 "%handler"
+CSR2 "%cause"
 
 
 /* regular expression */
 LITERAL (0[Xx])?[0-9A-Fa-f]+
 SYM     [A-Za-z_][A-Za-z0-9_]*
-STR     \".+\"
+STR     \"(\\.|[^\"])*\"
 COM     "#"[^\n\r]*
 WS      [ \r\t]*
 
@@ -101,8 +106,12 @@ WS      [ \r\t]*
 {CSRRD}     {return CSRRD;}
 {CSRWR}     {return CSRWR;}
 
-{CSRX}      {return CSRX;}
-{GPRX}      {return GPRX;}
+{GPRX}      {yylval.rval = atoi(yytext + 2); return GPRX;}
+{SP}        {yylval.rval = SP; return GPRX;}
+{PC}        {yylval.rval = PC; return GPRX;}
+{CSR0}      {yylval.rval = STATUS; return CSRX;}
+{CSR1}      {yylval.rval = HANDLER; return CSRX;}
+{CSR2}      {yylval.rval = CAUSE; return CSRX;}
 
 {LITERAL}	  {
               yylval.ival = strtol(yytext, NULL, 0);  
