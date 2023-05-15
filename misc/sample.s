@@ -43,4 +43,7 @@ finish:
     push %r15
     push %pc
     pop %sp
+    iret
+    add %r15, %r14
+    sub %r15, %r14
 .end

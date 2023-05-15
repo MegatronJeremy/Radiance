@@ -6,6 +6,8 @@
 
 #include "../misc/parser.hpp"
 
+constexpr uint32_t INSTRUCTION_LEN_BYTES = 4;
+
 /* Register enumerations */
 enum {
     R0 = 0,

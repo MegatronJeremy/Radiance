@@ -4,6 +4,7 @@
 #include "SectionTable.hpp"
 #include "SymbolTable.hpp"
 #include "RelocationTable.hpp"
+#include "LiteralTable.hpp"
 #include "../misc/parser.hpp"
 
 class Assembler {
@@ -16,9 +17,9 @@ public:
 
     void insertGlobalSymbol(const string &symbol);
 
-    void initCurrentLocation(const string &symbol);
+    void insertLiteral(const string &symbol);
 
-    void initCurrentLocation(Elf32_Word literal);
+    void insertLiteral(Elf32_Word literal);
 
     void initAscii(string ascii);
 
@@ -34,7 +35,9 @@ public:
 
     void insertInstruction(yytokentype token, const vector<int16_t> &fields = {});
 
-    Elf32_Word generateRelocation(const string &symbol);
+    Elf32_Word generateAbsoluteRelocation(const string &symbol);
+
+    Elf32_Word generateRelativeRelocation(const string &symbol);
 
     void endAssembly();
 
@@ -59,6 +62,7 @@ private:
     SectionTable sectionTable;
     SymbolTable symbolTable;
     RelocationTable relocationTable;
+    vector<LiteralTable> literalTable;
 
     uint32_t currentSection = SHN_UNDEF;
     uint32_t locationCounter = 0;

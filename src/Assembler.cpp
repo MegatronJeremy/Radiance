@@ -3,6 +3,7 @@
 
 #include <stdexcept>
 #include <cstring>
+#include <queue>
 
 Assembler::Assembler() {
     Elf32_Sym nsd{};
@@ -80,7 +81,7 @@ void Assembler::insertGlobalSymbol(const string &symbol) {
 
 void Assembler::addSymbolUsage(const string &symbol) {
     if (pass == 2) {
-        return; // do nothing?
+        return; // do nothing
     }
 
     if (currentSection == SHN_UNDEF) {
@@ -106,6 +107,9 @@ void Assembler::registerSection(const string &section) {
 }
 
 void Assembler::insertSection(const string &section) {
+    // open new literal table for current section
+    literalTable.emplace_back();
+
     // insert as symbol
     currentSection++;
     Elf32_Sym *sym = insertLocalSymbol(section);
@@ -143,21 +147,31 @@ bool Assembler::nextPass() {
     return true;
 }
 
-void Assembler::initCurrentLocation(const string &symbol) {
+void Assembler::insertLiteral(const string &symbol) {
     incLocationCounter();
     if (pass == 1) {
         addSymbolUsage(symbol);
     } else {
-        Elf32_Word literal = generateRelocation(symbol);
+        auto &currentLiteralTable = literalTable.back();
+        if (!currentLiteralTable.hasLiteral(symbol)) {
+            currentLiteralTable.insertLiteral(symbol, locationCounter);
+        }
+
+        Elf32_Word literal = generateAbsoluteRelocation(symbol);
         outputFile.write((char *) &literal, sizeof(literal));
     }
 }
 
-void Assembler::initCurrentLocation(Elf32_Word literal) {
+void Assembler::insertLiteral(Elf32_Word literal) {
     incLocationCounter();
     if (pass == 1) {
         return; // do nothing
     } else {
+        auto &currentLiteralTable = literalTable.back();
+        if (!currentLiteralTable.hasLiteral(literal)) {
+            currentLiteralTable.insertLiteral(literal, locationCounter);
+        }
+
         outputFile.write((char *) &literal, sizeof(literal));
     }
 }
@@ -186,14 +200,34 @@ void Assembler::prepareSecondPass() {
     outputFile.write((char *) &elfHeader, sizeof(elfHeader));
 }
 
-Elf32_Word Assembler::generateRelocation(const string &symbol) {
-    // for generating R_PC_32S
+Elf32_Word Assembler::generateAbsoluteRelocation(const string &symbol) {
+    // for generating R_32S
     Elf32_Sym *sd = symbolTable.get(symbol);
 
     Elf32_Rela rd;
 
     rd.r_addend = 0;
-    rd.r_info = ELF32_R_INFO(sd->st_name, R_X86_64_32S);
+    rd.r_info = ELF32_R_INFO(sd->st_name, R_32S);
+    rd.r_offset = locationCounter;
+
+    relocationTable.insertRelocationEntry(rd);
+
+    return sd->st_value;
+}
+
+
+Elf32_Word Assembler::generateRelativeRelocation(const string &symbol) {
+    // for generating R_PC32
+    Elf32_Sym *sd = symbolTable.get(symbol);
+
+    if (sd->st_shndx == currentSection) {
+        // no need for a relocation, same section
+    }
+
+    Elf32_Rela rd;
+
+    rd.r_addend = 0;
+    rd.r_info = ELF32_R_INFO(sd->st_name, R_PC32);
     rd.r_offset = locationCounter;
 
     relocationTable.insertRelocationEntry(rd);
@@ -210,11 +244,35 @@ void Assembler::zeroInitSpace(Elf32_Word bytes) {
 }
 
 void Assembler::insertInstruction(yytokentype token, const vector<int16_t> &fields) {
+    switch (token) {
+        case IRET:
+            incLocationCounter(2 * INSTRUCTION_LEN_BYTES);
+            break;
+        default:
+            incLocationCounter(INSTRUCTION_LEN_BYTES);
+    }
     if (pass == 1) {
         return; // do nothing
     }
 
-    Ins32 ins32 = Instruction32::getInstruction(token, fields);
+    queue<pair<yytokentype, vector<int16_t>>> buffer;
+    buffer.emplace(token, fields);
 
-    outputFile.write((char *) &ins32, sizeof(Ins32));
+    // switch for complex instruction types
+    while (!buffer.empty()) {
+        yytokentype nextToken = buffer.front().first;
+        vector<int16_t> nextFields = buffer.front().second;
+        buffer.pop();
+
+        switch (nextToken) {
+            case IRET:
+                buffer.emplace(POP, vector<int16_t>{PC});
+                buffer.emplace(POP_CS, vector<int16_t>{STATUS});
+                break;
+            default:
+                Ins32 ins32 = Instruction32::getInstruction(nextToken, nextFields);
+                outputFile.write((char *) &ins32, sizeof(Ins32));
+        }
+    }
+
 }
