@@ -5,6 +5,8 @@
 #include <cstring>
 #include <queue>
 
+Elf32_Addr Assembler::locationCounter = 0;
+
 Assembler::Assembler() {
     Elf32_Sym nsd{};
     nsd.st_shndx = SHN_UNDEF;
@@ -110,19 +112,23 @@ void Assembler::insertSection(const string &section) {
     // open new literal table for current section
     literalTable.emplace_back();
 
-    // insert as symbol
     currentSection++;
-    Elf32_Sym *sym = insertLocalSymbol(section);
-    sym->st_info = ELF32_ST_INFO(ELF32_ST_BIND(sym->st_info), STT_SECTION);
+
+    // close last section
+    sectionTable.closeLastSection(locationCounter);
+
+    // reset location counter
+    locationCounter = 0;
 
     // insert as section
     Elf32_Shdr sd{};
-    sd.sh_addr = locationCounter;
+    sd.sh_addr = 0;
     sd.sh_size = 0;
-
-    locationCounter = 0;
-
     sectionTable.insertSectionDefinition(sd, section);
+
+    // insert section as symbol
+    Elf32_Sym *sym = insertLocalSymbol(section);
+    sym->st_info = ELF32_ST_INFO(ELF32_ST_BIND(sym->st_info), STT_SECTION);
 }
 
 void Assembler::endAssembly() {
@@ -147,32 +153,27 @@ bool Assembler::nextPass() {
     return true;
 }
 
-void Assembler::insertLiteral(const string &symbol) {
+void Assembler::initSpaceWithConstant(const string &symbol) {
+    // to be called with .word or at the end of the second pass for the current section, to init all pool values
     incLocationCounter();
     if (pass == 1) {
         addSymbolUsage(symbol);
     } else {
-        auto &currentLiteralTable = literalTable.back();
-        if (!currentLiteralTable.hasLiteral(symbol)) {
-            currentLiteralTable.insertLiteral(symbol, locationCounter);
-        }
+        insertPoolConstant(symbol);
 
-        Elf32_Word literal = generateAbsoluteRelocation(symbol);
-        outputFile.write((char *) &literal, sizeof(literal));
+        // also generate relocation
+        generateAbsoluteRelocation(symbol);
     }
 }
 
-void Assembler::insertLiteral(Elf32_Word literal) {
+void Assembler::initSpaceWithConstant(Elf32_Word literal) {
+    // to be called with .word or at the end of the second pass for the current section, to init all pool values
     incLocationCounter();
     if (pass == 1) {
         return; // do nothing
     } else {
-        auto &currentLiteralTable = literalTable.back();
-        if (!currentLiteralTable.hasLiteral(literal)) {
-            currentLiteralTable.insertLiteral(literal, locationCounter);
-        }
-
-        outputFile.write((char *) &literal, sizeof(literal));
+        // generate no relocation
+        insertPoolConstant(literal);
     }
 }
 
@@ -200,7 +201,7 @@ void Assembler::prepareSecondPass() {
     outputFile.write((char *) &elfHeader, sizeof(elfHeader));
 }
 
-Elf32_Word Assembler::generateAbsoluteRelocation(const string &symbol) {
+void Assembler::generateAbsoluteRelocation(const string &symbol) {
     // for generating R_32S
     Elf32_Sym *sd = symbolTable.get(symbol);
 
@@ -212,11 +213,13 @@ Elf32_Word Assembler::generateAbsoluteRelocation(const string &symbol) {
 
     relocationTable.insertRelocationEntry(rd);
 
-    return sd->st_value;
+    Elf32_Word relocationValue = sd->st_value;
+
+    outputFile.write((char *) &relocationValue, sizeof(Elf32_Word));
 }
 
 
-Elf32_Word Assembler::generateRelativeRelocation(const string &symbol) {
+void Assembler::generateRelativeRelocation(const string &symbol) {
     // for generating R_PC32
     Elf32_Sym *sd = symbolTable.get(symbol);
 
@@ -226,13 +229,15 @@ Elf32_Word Assembler::generateRelativeRelocation(const string &symbol) {
 
     Elf32_Rela rd;
 
-    rd.r_addend = 0;
+    rd.r_addend = -INSTRUCTION_LEN_BYTES;
     rd.r_info = ELF32_R_INFO(sd->st_name, R_PC32);
     rd.r_offset = locationCounter;
 
     relocationTable.insertRelocationEntry(rd);
 
-    return sd->st_value;
+    Elf32_Word relocationValue = locationCounter - sd->st_value;
+
+    outputFile.write((char *) &relocationValue, sizeof(Elf32_Word));
 }
 
 void Assembler::zeroInitSpace(Elf32_Word bytes) {
@@ -275,4 +280,30 @@ void Assembler::insertInstruction(yytokentype token, const vector<int16_t> &fiel
         }
     }
 
+}
+
+template<typename T>
+Elf32_Addr Assembler::insertPoolConstant(const T &constant) {
+    // constant can be symbol or literal
+    auto &currentLiteralTable = literalTable.back();
+    if (currentLiteralTable.hasConstant(constant)) {
+        // already has constant value, return address
+        return currentLiteralTable.getConstantAddress(constant);
+    }
+
+    Elf32_Shdr &section = sectionTable.get(currentSection);
+
+    Elf32_Addr sectionEnd = section.sh_size;
+    currentLiteralTable.insertConstant(constant, sectionEnd);
+    section.sh_size += WORD_LEN_BYTES;
+
+    // sectionEnd is new literal address
+    return sectionEnd;
+}
+
+void Assembler::initCurrentSectionPoolValues() {
+    auto &currentLiteralTable = literalTable.back();
+    while (currentLiteralTable.hasNextLocationValue()) {
+        initSpaceWithConstant(currentLiteralTable.getNextLocationValue<>());
+    }
 }

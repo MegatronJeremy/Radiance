@@ -13,6 +13,8 @@ class SectionTable {
 public:
     SectionTable();
 
+    Elf32_Shdr &get(Elf32_Section s);
+
     void insertSectionDefinition(Elf32_Shdr sd, const string &name);
 
     void closeLastSection(Elf32_Addr endLocation);

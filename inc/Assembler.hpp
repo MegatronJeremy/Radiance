@@ -17,15 +17,16 @@ public:
 
     void insertGlobalSymbol(const string &symbol);
 
-    void insertLiteral(const string &symbol);
+    template<typename T>
+    Elf32_Addr insertPoolConstant(const T &constant);
 
-    void insertLiteral(Elf32_Word literal);
+    void initSpaceWithConstant(const string &symbol);
+
+    void initSpaceWithConstant(Elf32_Word literal);
 
     void initAscii(string ascii);
 
     void zeroInitSpace(Elf32_Word bytes);
-
-    void incLocationCounter(Elf32_Word bytes = 4);
 
     void registerSection(const string &section);
 
@@ -35,16 +36,19 @@ public:
 
     void insertInstruction(yytokentype token, const vector<int16_t> &fields = {});
 
-    Elf32_Word generateAbsoluteRelocation(const string &symbol);
+    void generateAbsoluteRelocation(const string &symbol);
 
-    Elf32_Word generateRelativeRelocation(const string &symbol);
+    void generateRelativeRelocation(const string &symbol);
 
     void endAssembly();
+
+    void initCurrentSectionPoolValues();
 
     bool nextPass();
 
     void prepareSecondPass();
 
+    static void incLocationCounter(Elf32_Word bytes = 4);
 
     friend ostream &operator<<(ostream &os, const Assembler &as);
 
@@ -65,7 +69,7 @@ private:
     vector<LiteralTable> literalTable;
 
     uint32_t currentSection = SHN_UNDEF;
-    uint32_t locationCounter = 0;
+    static Elf32_Addr locationCounter;
 
     int pass = 0;
 };

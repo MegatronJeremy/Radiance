@@ -7,49 +7,50 @@
 
 class LiteralTable {
 public:
-    void insertLiteral(Elf32_Word literal, Elf32_Addr addr) {
+    void insertConstant(Elf32_Word literal, Elf32_Addr addr) {
         numericMap[literal] = addr;
     }
 
-    void insertLiteral(const string &symbol, Elf32_Addr addr) {
+    void insertConstant(const string &symbol, Elf32_Addr addr) {
         symbolMap[symbol] = addr;
     }
 
-    void insertLocationValue(Elf32_Word val) {
-        poolValues.push(val);
-    }
-
-    Elf32_Word getLiteralAddress(Elf32_Word literal) {
+    Elf32_Word getConstantAddress(Elf32_Word literal) {
         return numericMap[literal];
     }
 
-    Elf32_Word getLiteralAddress(const string &symbol) {
+    Elf32_Word getConstantAddress(const string &symbol) {
         return symbolMap[symbol];
     }
 
-    bool hasLiteral(Elf32_Word literal) {
+    bool hasConstant(Elf32_Word literal) {
         return numericMap.find(literal) != numericMap.end();
     }
 
-    bool hasLiteral(const string &symbol) {
+    bool hasConstant(const string &symbol) {
         return symbolMap.find(symbol) != symbolMap.end();
     }
 
-    Elf32_Word getNextLocationValue() {
-        Elf32_Word ret = poolValues.front();
-        poolValues.pop();
-        return ret;
+    Elf32_Word getNextLiteralConstante() {
+
     }
 
-    bool hasNextLocationValue() {
-        return !poolValues.empty();
+    int hasNextLocationValue() {
+        if (!poolLiterals.empty() && poolLiterals.front().first < poolSymbols.front().first) {
+            return 1;
+        } else if (!poolSymbols.empty()) {
+            return 2;
+        } else {
+            return 0;
+        }
     }
 
 private:
     std::unordered_map<Elf32_Word, Elf32_Word> numericMap;
     std::unordered_map<string, Elf32_Word> symbolMap;
 
-    std::queue<Elf32_Word> poolValues;
+    std::queue<pair<Elf32_Addr, Elf32_Word>> poolLiterals;
+    std::queue<pair<Elf32_Addr, string>> poolSymbols;
 
     uint32_t iter = 0;
 

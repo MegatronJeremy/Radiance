@@ -1,6 +1,11 @@
 #include "../inc/SymbolTable.hpp"
 
+#include <iostream>
+
+using namespace std;
+
 Elf32_Sym *SymbolTable::insertSymbolDefinition(Elf32_Sym &sd, const string &name) {
+    cout << name << endl;
     symbolMappings[name] = sd.st_name = symbolDefinitions.size();
     symbolDefinitions.emplace_back(sd);
     return &symbolDefinitions.back();

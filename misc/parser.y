@@ -113,10 +113,10 @@ instruction:
     ; 
 
 initializer_list:
-      SYMBOL                        { as->insertLiteral($1); free($1); }
-    | LITERAL                       { as->insertLiteral($1); }
-    | initializer_list ',' SYMBOL   { as->insertLiteral($3); free($3); }
-    | initializer_list ',' LITERAL  { as->insertLiteral($3); }
+      SYMBOL                        { as->initSpaceWithConstant($1); free($1); }
+    | LITERAL                       { as->initSpaceWithConstant($1); }
+    | initializer_list ',' SYMBOL   { as->initSpaceWithConstant($3); free($3); }
+    | initializer_list ',' LITERAL  { as->initSpaceWithConstant($3); }
     ;
 
 global_symbol_list:

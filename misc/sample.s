@@ -28,6 +28,7 @@ my_isr_timer:
     int
     jmp finish
 # obrada prekida od terminala
+.section random_section
 my_isr_terminal:
     ld term_in, %r1
     st %r1, term_out

@@ -11,12 +11,6 @@ SectionTable::SectionTable() {
 }
 
 void SectionTable::insertSectionDefinition(Elf32_Shdr sd, const string &name) {
-    // size 1 - only undefined section present
-    if (sectionDefinitions.size() != 1) {
-        closeLastSection(sd.sh_addr);
-    }
-
-    sd.sh_addr += sectionDefinitions.back().sh_addr;
     sectionDefinitions.emplace_back(sd);
 }
 
@@ -36,4 +30,8 @@ ostream &operator<<(ostream &os, const SectionTable &st) {
         os << sd << ": " << i++ << endl;
     }
     return os;
+}
+
+Elf32_Shdr &SectionTable::get(Elf32_Section s) {
+    return sectionDefinitions[s];
 }
