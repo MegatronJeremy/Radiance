@@ -3,6 +3,7 @@
     #include <iostream>
     using namespace std;
     extern int lineNum;
+    extern int yyerror(const char*);
     #include "../inc/Ins32.hpp"
 %}
 
@@ -125,5 +126,7 @@ WS      [ \r\t]*
               yylval.sval = strdup(yytext);
               return STRING;
             }
+
+.           { /* Default rule */ yyerror("Syntax error, unmatched symbol!"); }
 
 %%

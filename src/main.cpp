@@ -13,19 +13,38 @@ extern FILE *yyin;
 
 int lineNum;
 
-int main(int, char **) {
-    as = make_unique<Assembler>();
+int main(int argc, char **argv) {
+    if (argc < 3) {
+        as = make_unique<Assembler>();
+    } else {
+        as = make_unique<Assembler>(argv[2]);
+    }
+
+    // open a file handle to a particular file:
+    FILE *myfile = fopen(argv[1], "rw+");
+    // make sure it's valid:
+    if (!myfile) {
+        cerr << "Can't open file!" << endl;
+        return -1;
+    }
+    //Seek one character from the end of the file.
+    fseek(myfile, -1, SEEK_END);
+
+    //Read in a single character;
+    char cLastChar = static_cast<char>(fgetc(myfile));
+
+    if (cLastChar != '\n') {
+        cerr << "Warning! Newline not found at the end of file, appending...\n";
+        //Write the line-feed.
+        fwrite("\n", sizeof(char), 1, myfile);
+    }
+
+    // Set lex to read from it instead of defaulting to STDIN:
+    yyin = myfile;
 
     while (as->nextPass()) {
-        // open a file handle to a particular file:
-        FILE *myfile = fopen("sample.s", "r");
-        // make sure it's valid:
-        if (!myfile) {
-            cout << "Can't open file!" << endl;
-            return -1;
-        }
-        // Set lex to read from it instead of defaulting to STDIN:
-        yyin = myfile;
+        // fseek to start of file
+        fseek(myfile, 0, SEEK_SET);
 
         // Reset line num
         lineNum = 1;
@@ -39,4 +58,7 @@ int main(int, char **) {
             break;
         }
     }
+
+
+
 }

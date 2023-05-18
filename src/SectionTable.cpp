@@ -4,19 +4,19 @@
 
 using namespace std;
 
-SectionTable::SectionTable() {
-    Elf32_Shdr und{};
 
-    sectionDefinitions.emplace_back(und);
-}
-
-void SectionTable::insertSectionDefinition(Elf32_Shdr sd, const string &name) {
+Elf32_Shdr &SectionTable::insertSectionDefinition(Elf32_Shdr sd) {
     sectionDefinitions.emplace_back(sd);
+    return sectionDefinitions.back();
 }
 
 void SectionTable::closeLastSection(Elf32_Addr endLocation) {
     Elf32_Shdr &prev = sectionDefinitions.back();
     prev.sh_size = endLocation;
+}
+
+Elf32_Shdr &SectionTable::get(Elf32_Section s) {
+    return sectionDefinitions[s];
 }
 
 ostream &operator<<(ostream &os, const Elf32_Shdr &sd) {
@@ -30,8 +30,4 @@ ostream &operator<<(ostream &os, const SectionTable &st) {
         os << sd << ": " << i++ << endl;
     }
     return os;
-}
-
-Elf32_Shdr &SectionTable::get(Elf32_Section s) {
-    return sectionDefinitions[s];
 }

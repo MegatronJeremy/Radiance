@@ -4,55 +4,63 @@
 
 #include <unordered_map>
 #include <queue>
+#include <utility>
+
+struct PoolConstant {
+    PoolConstant(Elf32_Word num) : number(num), isNumeric(true) {}
+
+    PoolConstant(string sym) : symbol(std::move(sym)), isNumeric(false) {}
+
+    PoolConstant(char *sym) : symbol(sym), isNumeric(false) {}
+
+    Elf32_Word number{};
+    string symbol;
+
+    bool isNumeric = true;
+};
 
 class LiteralTable {
 public:
-    void insertConstant(Elf32_Word literal, Elf32_Addr addr) {
-        numericMap[literal] = addr;
-    }
-
-    void insertConstant(const string &symbol, Elf32_Addr addr) {
-        symbolMap[symbol] = addr;
-    }
-
-    Elf32_Word getConstantAddress(Elf32_Word literal) {
-        return numericMap[literal];
-    }
-
-    Elf32_Word getConstantAddress(const string &symbol) {
-        return symbolMap[symbol];
-    }
-
-    bool hasConstant(Elf32_Word literal) {
-        return numericMap.find(literal) != numericMap.end();
-    }
-
-    bool hasConstant(const string &symbol) {
-        return symbolMap.find(symbol) != symbolMap.end();
-    }
-
-    Elf32_Word getNextLiteralConstante() {
-
-    }
-
-    int hasNextLocationValue() {
-        if (!poolLiterals.empty() && poolLiterals.front().first < poolSymbols.front().first) {
-            return 1;
-        } else if (!poolSymbols.empty()) {
-            return 2;
+    void insertConstant(const PoolConstant &constant, Elf32_Addr addr) {
+        if (constant.isNumeric) {
+            numericMap[constant.number] = addr;
         } else {
-            return 0;
+            symbolMap[constant.symbol] = addr;
         }
+        poolConstantsQueue.push(constant);
+    }
+
+    Elf32_Word getConstantAddress(const PoolConstant &constant) {
+        if (constant.isNumeric) {
+            return numericMap[constant.number];
+        } else {
+            return symbolMap[constant.symbol];
+        }
+    }
+
+    bool hasConstant(const PoolConstant &constant) {
+        if (constant.isNumeric) {
+            return numericMap.find(constant.number) != numericMap.end();
+        } else {
+            return symbolMap.find(constant.symbol) != symbolMap.end();
+        }
+    }
+
+    PoolConstant getNextPoolConstant() {
+        PoolConstant ret = poolConstantsQueue.front();
+        poolConstantsQueue.pop();
+        return ret;
+    }
+
+    bool hasNextPoolConstant() {
+        return !poolConstantsQueue.empty();
     }
 
 private:
     std::unordered_map<Elf32_Word, Elf32_Word> numericMap;
     std::unordered_map<string, Elf32_Word> symbolMap;
 
-    std::queue<pair<Elf32_Addr, Elf32_Word>> poolLiterals;
-    std::queue<pair<Elf32_Addr, string>> poolSymbols;
-
-    uint32_t iter = 0;
+    std::queue<PoolConstant> poolConstantsQueue;
 
 };
 

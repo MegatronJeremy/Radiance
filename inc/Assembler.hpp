@@ -5,11 +5,12 @@
 #include "SymbolTable.hpp"
 #include "RelocationTable.hpp"
 #include "LiteralTable.hpp"
+#include "Ins32.hpp"
 #include "../misc/parser.hpp"
 
 class Assembler {
 public:
-    Assembler();
+    explicit Assembler(string output = "a.out");
 
     Elf32_Sym *insertLocalSymbol(const string &symbol);
 
@@ -17,8 +18,7 @@ public:
 
     void insertGlobalSymbol(const string &symbol);
 
-    template<typename T>
-    Elf32_Addr insertPoolConstant(const T &constant);
+    Elf32_Addr getPoolConstantAddr(const PoolConstant &constant);
 
     void initSpaceWithConstant(const string &symbol);
 
@@ -36,17 +36,39 @@ public:
 
     void insertInstruction(yytokentype token, const vector<int16_t> &fields = {});
 
-    void generateAbsoluteRelocation(const string &symbol);
+    void insertFlowControlIns(yytokentype type, const PoolConstant &constant,
+                              const vector<int16_t> &fields = {R0, R0, R0});
 
-    void generateRelativeRelocation(const string &symbol);
+
+    void insertLoadIns(yytokentype type, const PoolConstant &poolConstant, vector<int16_t> &&fields);
+
+    void insertStoreIns(yytokentype type, const PoolConstant &poolConstant, vector<int16_t> &&fields);
+
+    void insertIretIns();
+
+    void generateRelocation(const string &symbol);
+
+    void generateAbsoluteRelocation(Elf32_Sym *sd);
+
+    void generateRelativeRelocation(Elf32_Sym *sd);
 
     void endAssembly();
 
-    void initCurrentSectionPoolValues();
+    void initCurrentSectionPoolConstants();
 
     bool nextPass();
 
     void prepareSecondPass();
+
+    void writeSymbolTable(vector<Elf32_Shdr> &additionalHeaders);
+
+    void writeStringTable(vector<Elf32_Shdr> &additionalHeaders);
+
+    void writeRelocationTables(vector<Elf32_Shdr> &additionalHeaders);
+
+    void writeToOutputFile();
+
+    void readOutputFile();
 
     static void incLocationCounter(Elf32_Word bytes = 4);
 
@@ -65,11 +87,15 @@ private:
 
     SectionTable sectionTable;
     SymbolTable symbolTable;
-    RelocationTable relocationTable;
+
+    // one for each section
+    vector<RelocationTable> relocationTable;
     vector<LiteralTable> literalTable;
 
     uint32_t currentSection = SHN_UNDEF;
     static Elf32_Addr locationCounter;
+
+    string outFile;
 
     int pass = 0;
 };

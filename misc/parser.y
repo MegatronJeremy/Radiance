@@ -1,15 +1,14 @@
 %{
   #include <iostream>
-  #include <cstdio>
+  #include <cstdint>
   #include "../inc/Assembler.hpp"
-  #include "../inc/Ins32.hpp"
   using namespace std;
 
   extern int yylex();
   extern int lineNum;
   extern Assembler *as;
 
-    void yyerror(const char*);
+  void yyerror(const char*);
 %}
 
 %output  "parser.cpp"
@@ -35,9 +34,9 @@
 
 /* special symbols */
 %token POP_CS
+%token LD_REG LD_PCREL LD_IMM
 
 %type <ival> ival_expression
-%type <ival> branch_operand
 
 %left '+' '-'
 %nonassoc UMINUS
@@ -48,9 +47,9 @@
 %%
 
 program:
-    statements sentinel { as->endAssembly(); YYACCEPT; }
+    | statements { as->endAssembly(); }
 
-statements: 
+statements:
     statement
     | statements statement
     ;
@@ -63,10 +62,6 @@ statement:
     | directive ENDL
     | ENDL
     ;
-
-sentinel:
-      ENDL
-    | END;
 
 label:
       SYMBOL ':' { as->insertLocalSymbol($1); free($1); }
@@ -81,36 +76,53 @@ directive:
     | SKIP LITERAL                   { as->zeroInitSpace($2); }
     | ASCII STRING                   { as->initAscii($2); free($2); }
     | EQU SYMBOL ',' ival_expression { as->insertAbsoluteSymbol($2, $4); free($2); }
+    | END                            { as->endAssembly(); YYACCEPT; }
     ;
 
-instruction: 
-      HALT                      { as->insertInstruction(HALT); }
-    | INT                       { as->insertInstruction(INT); }
-    | IRET                      { as->insertInstruction(IRET); }
-    | CALL branch_operand
-    | RET                       { as->insertInstruction(POP, {PC}); }
-    | JMP branch_operand
-    | BEQ branch_expression
-    | BNE branch_expression
-    | BGT branch_expression
-    | PUSH GPRX                 { as->insertInstruction(PUSH, {$2}); }
-    | POP GPRX                  { as->insertInstruction(POP, {$2}); }
-    | XCHG GPRX ',' GPRX        { as->insertInstruction(XCHG, {0, $4, $2}); }
-    | ADD GPRX ',' GPRX         { as->insertInstruction(ADD, {$4, $4, $2}); }
-    | SUB GPRX ',' GPRX         { as->insertInstruction(SUB, {$4, $4, $2}); }
-    | MUL GPRX ',' GPRX         { as->insertInstruction(MUL, {$4, $4, $2}); }
-    | DIV GPRX ',' GPRX         { as->insertInstruction(DIV, {$4, $4, $2}); }
-    | NOT GPRX                  { as->insertInstruction(NOT, {$2, $2}); }
-    | AND GPRX ',' GPRX         { as->insertInstruction(AND, {$4, $4, $2}); }
-    | OR GPRX ',' GPRX          { as->insertInstruction(OR, {$4, $4, $2}); }
-    | XOR GPRX ',' GPRX         { as->insertInstruction(XOR, {$4, $4, $2}); }
-    | SHL GPRX ',' GPRX         { as->insertInstruction(SHL, {$4, $4, $2}); }
-    | SHR GPRX ',' GPRX         { as->insertInstruction(SHR, {$4, $4, $2}); }
-    | LD data_operand ',' GPRX
-    | ST GPRX ',' data_operand
-    | CSRRD CSRX ',' GPRX       { as->insertInstruction(CSRRD, {$2, $4}); }
-    | CSRWR GPRX ',' CSRX       { as->insertInstruction(CSRWR, {$2, $4}); }
-    ; 
+instruction:
+      HALT                                  { as->insertInstruction(HALT); }
+    | INT                                   { as->insertInstruction(INT); }
+    | IRET                                  { as->insertIretIns(); }
+    | CALL LITERAL                          { as->insertFlowControlIns(CALL, $2); }
+    | CALL SYMBOL                           { as->insertFlowControlIns(CALL, $2); free($2); }
+    | RET                                   { as->insertInstruction(POP, {PC}); }
+    | JMP LITERAL                           { as->insertFlowControlIns(JMP, $2); }
+    | JMP SYMBOL                            { as->insertFlowControlIns(JMP, $2); free($2); }
+    | BEQ GPRX ',' GPRX ',' LITERAL         { as->insertFlowControlIns(BEQ, $6, {R0, $2, $4}); }
+    | BEQ GPRX ',' GPRX ',' SYMBOL          { as->insertFlowControlIns(BEQ, $6, {R0, $2, $4}); free($6); }
+    | BNE GPRX ',' GPRX ',' LITERAL         { as->insertFlowControlIns(BNE, $6, {R0, $2, $4}); }
+    | BNE GPRX ',' GPRX ',' SYMBOL          { as->insertFlowControlIns(BNE, $6, {R0, $2, $4}); free($6); }
+    | BGT GPRX ',' GPRX ',' LITERAL         { as->insertFlowControlIns(BGT, $6, {R0, $2, $4}); }
+    | BGT GPRX ',' GPRX ',' SYMBOL          { as->insertFlowControlIns(BGT, $6, {R0, $2, $4}); free($6); }
+    | PUSH GPRX                             { as->insertInstruction(PUSH, {$2}); }
+    | POP GPRX                              { as->insertInstruction(POP, {$2}); }
+    | XCHG GPRX ',' GPRX                    { as->insertInstruction(XCHG, {$4, $2}); }
+    | ADD GPRX ',' GPRX                     { as->insertInstruction(ADD, {$4, $4, $2}); }
+    | SUB GPRX ',' GPRX                     { as->insertInstruction(SUB, {$4, $4, $2}); }
+    | MUL GPRX ',' GPRX                     { as->insertInstruction(MUL, {$4, $4, $2}); }
+    | DIV GPRX ',' GPRX                     { as->insertInstruction(DIV, {$4, $4, $2}); }
+    | NOT GPRX                              { as->insertInstruction(NOT, {$2, $2}); }
+    | AND GPRX ',' GPRX                     { as->insertInstruction(AND, {$4, $4, $2}); }
+    | OR GPRX ',' GPRX                      { as->insertInstruction(OR, {$4, $4, $2}); }
+    | XOR GPRX ',' GPRX                     { as->insertInstruction(XOR, {$4, $4, $2}); }
+    | SHL GPRX ',' GPRX                     { as->insertInstruction(SHL, {$4, $4, $2}); }
+    | SHR GPRX ',' GPRX                     { as->insertInstruction(SHR, {$4, $4, $2}); }
+    | LD '$' LITERAL ',' GPRX               { as->insertLoadIns(LD_REG, $3, {$5, R0}); }
+    | LD '$' SYMBOL ',' GPRX                { as->insertLoadIns(LD_REG, $3, {$5, R0}); free($3); }
+    | LD LITERAL ',' GPRX                   { as->insertLoadIns(LD, $2, {$4, $4, R0}); }
+    | LD SYMBOL ',' GPRX                    { as->insertLoadIns(LD, $2, {$4, $4, R0}); free($2); }
+    | LD GPRX ',' GPRX                      { as->insertInstruction(LD_REG, {$4, $2}); }
+    | LD '[' GPRX ']' ',' GPRX              { as->insertInstruction(LD, {$6, $3}); }
+    | LD '[' GPRX '+' LITERAL ']' ',' GPRX  { as->insertLoadIns(LD, $5, {$8, $8, $3}); }
+    | LD '[' GPRX '+' SYMBOL ']' ',' GPRX   { as->insertLoadIns(LD, $5, {$8, $8, $3}); free($5); }
+    | ST GPRX ',' LITERAL                   { as->insertStoreIns(ST, $4, {R0, R0, $2}); }
+    | ST GPRX ',' SYMBOL                    { as->insertStoreIns(ST, $4, {R0, R0, $2}); free($4); }
+    | ST GPRX ',' '[' GPRX ']'              { as->insertInstruction(ST, {$5, R0, $2}); }
+    | ST GPRX ',' '[' GPRX '+' LITERAL ']'  { as->insertStoreIns(ST, $7, {R0, $5, $2}); }
+    | ST GPRX ',' '[' GPRX '+' SYMBOL ']'   { as->insertStoreIns(ST, $7, {R0, $5, $2}); free($7); }
+    | CSRRD CSRX ',' GPRX                   { as->insertInstruction(CSRRD, {$2, $4}); }
+    | CSRWR GPRX ',' CSRX                   { as->insertInstruction(CSRWR, {$2, $4}); }
+    ;
 
 initializer_list:
       SYMBOL                        { as->initSpaceWithConstant($1); free($1); }
@@ -129,10 +141,6 @@ extern_symbol_list: // .extern symbols are ignored, all undefined symbols are ex
     | extern_symbol_list ',' SYMBOL { free($3); }
     ;
 
-branch_expression:
-      GPRX ',' GPRX ',' branch_operand
-    ;
-
 ival_expression:
       LITERAL     /* default action { $$ = $1;}  */
     | SYMBOL  { cout << $1 << endl; free($1); } // TODO
@@ -140,22 +148,6 @@ ival_expression:
     | ival_expression '-' ival_expression { $$ = $1 - $3; }
     | '-' ival_expression %prec UMINUS    { $$ = -$2; }
     | '(' ival_expression ')'             { $$ = $2;  }
-    ;
-
-data_operand:
-      '$' LITERAL 
-    | '$' SYMBOL  { as->addSymbolUsage($2); free($2); }
-    | LITERAL
-    | SYMBOL      { as->addSymbolUsage($1); free($1); }
-    | GPRX
-    | '[' GPRX ']'
-    | '[' GPRX '+' LITERAL ']'
-    | '[' GPRX '+' SYMBOL ']'  { as->addSymbolUsage($4); free($4); }
-    ;
-
-branch_operand:
-      LITERAL
-    | SYMBOL { $$ = as->addSymbolUsage($1); free($1); }
     ;
 
 %%

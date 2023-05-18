@@ -1,13 +1,18 @@
 #pragma once
 
 #include <cstdint>
-#include <map>
+
+// must include here because of type traits?
+#include <unordered_map>
 #include <vector>
 
 #include "../misc/parser.hpp"
 
 constexpr int32_t INSTRUCTION_LEN_BYTES = 4;
 constexpr int32_t WORD_LEN_BYTES = 4;
+
+constexpr int32_t MIN_DISP = ~(0x7FF);
+constexpr int32_t MAX_DISP = 0x7FF;
 
 /* Register enumerations */
 enum {
@@ -40,6 +45,14 @@ enum {
     STATUS = 0, // status
     HANDLER,    // handler
     CAUSE       // cause
+};
+
+/* Instruction parameter fields */
+enum {
+    REG_A = 0,
+    REG_B,
+    REG_C,
+    DISP
 };
 
 typedef uint32_t Ins32;
@@ -78,7 +91,6 @@ public:
         }
         return (int16_t) extracted;
     }
-
 
 private:
 
@@ -186,6 +198,5 @@ private:
 
     static const field_setter setOrDefaultParams[];
 
-    static constexpr uint32_t NUM_FIELDS = 4;
-
+    static constexpr uint32_t NUM_PARAMETERS = 4;
 };

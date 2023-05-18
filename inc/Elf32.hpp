@@ -43,6 +43,7 @@ struct Elf32_Ehdr {
     Elf32_Half e_shstrndx{};        /* Section header string table index */
 };
 
+
 /* Conglomeration of the identification bytes, for easy testing as a word.  */
 #define    ELFMAG        "\177ELF"
 
@@ -82,7 +83,7 @@ struct Elf32_Sym {
 /* Relocation table entry with addend (in section of type SHT_RELA).  */
 
 struct Elf32_Rela {
-    Elf32_Addr r_offset{};        /* Address */
+    Elf32_Addr r_offset{};        /* Address in section */
     Elf32_Word r_info{};            /* Relocation type and symbol index */
     Elf32_Sword r_addend{};        /* Addend */
 };
@@ -114,6 +115,8 @@ struct Elf32_Shdr {
     Elf32_Word sh_info{};        /* Additional section information */
     Elf32_Word sh_addralign{};        /* Section alignment */
     Elf32_Word sh_entsize{};        /* Entry size if section holds table */
+
+    friend ostream &operator<<(ostream &os, const Elf32_Shdr &sh);
 };
 
 /* Special section indices.  */

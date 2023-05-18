@@ -13,6 +13,9 @@ labela_poruke:
 .extern term_in
 .global term_out
 
+.global abc
+.section abc
+
 .equ term_in, 0xFFFF-0x0FFF
 .equ term_in, main+4444
 
@@ -33,10 +36,6 @@ sum:
     mov esi, eax
     call printf
 
-
-    leave
     ret
-
-
 
 .end

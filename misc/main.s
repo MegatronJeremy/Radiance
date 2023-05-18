@@ -16,5 +16,5 @@ wait:
 .global my_counter
 .section my_data
 my_counter:
-	.word 0
+	.word 0, 0xfff
 .end

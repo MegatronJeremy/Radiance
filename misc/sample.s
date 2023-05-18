@@ -14,7 +14,7 @@ handler:
     push %r2
     csrrd %cause, %r1
     int
-    .ascii "LIGHT IS FADING FROM OUR WORLD"
+    .ascii "Q PREDICTED THIS"
     ld $2, %r2
     beq %r1, %r2, my_isr_timer
     .word handler
@@ -47,4 +47,5 @@ finish:
     iret
     add %r15, %r14
     sub %r15, %r14
+    call my_code_handler
 .end

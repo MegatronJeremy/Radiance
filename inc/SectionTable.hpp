@@ -9,18 +9,14 @@
 using namespace std;
 
 
-class SectionTable {
-public:
-    SectionTable();
-
+struct SectionTable {
     Elf32_Shdr &get(Elf32_Section s);
 
-    void insertSectionDefinition(Elf32_Shdr sd, const string &name);
+    Elf32_Shdr &insertSectionDefinition(Elf32_Shdr sd = {});
 
     void closeLastSection(Elf32_Addr endLocation);
 
     friend ostream &operator<<(ostream &os, const SectionTable &st);
 
-private:
     vector<Elf32_Shdr> sectionDefinitions;
 };
