@@ -1,7 +1,7 @@
 %{
   #include <iostream>
   #include <cstdint>
-  #include "../inc/Assembler.hpp"
+  #include "../inc/assembler/Assembler.hpp"
   using namespace std;
 
   extern int yylex();

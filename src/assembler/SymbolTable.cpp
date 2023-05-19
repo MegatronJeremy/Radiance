@@ -1,4 +1,4 @@
-#include "../inc/SymbolTable.hpp"
+#include "../../inc/assembler/SymbolTable.hpp"
 
 #include <iostream>
 

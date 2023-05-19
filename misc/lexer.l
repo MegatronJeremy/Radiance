@@ -4,7 +4,7 @@
     using namespace std;
     extern int lineNum;
     extern int yyerror(const char*);
-    #include "../inc/Ins32.hpp"
+    #include "../inc/common/Ins32.hpp"
 %}
 
 %option outfile="lexer.cpp" header-file="lexer.hpp"

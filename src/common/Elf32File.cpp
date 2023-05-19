@@ -1,5 +1,5 @@
-#include "../inc/Elf32File.hpp"
-#include "../inc/Ins32.hpp"
+#include "../../inc/common/Elf32File.hpp"
+#include "../../inc/common/Ins32.hpp"
 
 Elf32File::Elf32File(const string &fileName) {
     // load file and everything that goes with it

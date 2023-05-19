@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include "Elf32.hpp"
+#include "../common/Elf32.hpp"
 
 using namespace std;
 

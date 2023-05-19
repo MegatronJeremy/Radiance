@@ -1,4 +1,4 @@
-#include "../inc/Ins32.hpp"
+#include "../../inc/common/Ins32.hpp"
 
 const Instruction32::field_setter Instruction32::setOrDefaultParams[] = {
         setOrDefaultRegA,
@@ -14,7 +14,7 @@ Ins32 Instruction32::getInstruction(yytokentype token, const std::vector<int16_t
     setOpcode(token, ins32);
     setMode(token, ins32);
 
-    int currentParameter = 0;
+    unsigned int currentParameter = 0;
 
     for (field_setter setOrDefaultX: setOrDefaultParams) {
 

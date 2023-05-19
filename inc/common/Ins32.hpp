@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "../misc/parser.hpp"
+#include "../../misc/parser.hpp"
 
 constexpr int32_t INSTRUCTION_LEN_BYTES = 4;
 constexpr int32_t WORD_LEN_BYTES = 4;

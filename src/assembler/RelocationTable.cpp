@@ -1,4 +1,4 @@
-#include "../inc/RelocationTable.hpp"
+#include "../../inc/assembler/RelocationTable.hpp"
 
 ostream &operator<<(ostream &os, const RelocationTable &rt) {
     os << "Relocation table: " << endl;

@@ -1,8 +1,8 @@
-#include "../inc/Assembler.hpp"
-#include "../inc/Elf32File.hpp"
+#include "../../inc/assembler/Assembler.hpp"
 
 #include <iostream>
 #include <memory>
+#include <getopt.h>
 
 
 using namespace std;
@@ -15,18 +15,32 @@ extern FILE *yyin;
 
 int lineNum;
 
-int assemble(int argc, char **argv) {
-    if (argc < 3) {
-        as = make_unique<Assembler>();
-    } else {
-        as = make_unique<Assembler>(argv[2]);
+int main(int argc, char **argv) {
+    if (argc < 2) {
+        cerr << "Assembler error: No input file named" << endl;
+        return -3;
     }
 
-    // open a file handle to a particular file:
-    FILE *myfile = fopen(argv[1], "rw+");
+    string out_file = "a.out";
+
+    char c;
+    while ((c = static_cast<char>(getopt(argc, argv, "o:"))) != -1) {
+        switch (c) {
+            case 'o':
+                out_file = optarg;
+                break;
+            default:
+                return -2;
+        }
+    }
+
+    as = make_unique<Assembler>(out_file);
+
+    // open a file handle to a particular file (optind points to first positional argument):
+    FILE *myfile = fopen(argv[optind], "rw+");
     // make sure it's valid:
     if (!myfile) {
-        cerr << "Can't open file!" << endl;
+        cerr << "Assembler error: No such file or directory" << endl;
         return -1;
     }
     //Seek one character from the end of the file.
@@ -36,7 +50,7 @@ int assemble(int argc, char **argv) {
     char cLastChar = static_cast<char>(fgetc(myfile));
 
     if (cLastChar != '\n') {
-        cerr << "Warning! Newline not found at the end of file, appending...\n";
+        cerr << "Warning! Newline not found at the end of file, appending\n";
         //Write the line-feed.
         fwrite("\n", sizeof(char), 1, myfile);
     }
@@ -60,14 +74,4 @@ int assemble(int argc, char **argv) {
             break;
         }
     }
-    return 0;
-}
-
-int main(int argc, char **argv) {
-    assemble(argc, argv);
-
-    Elf32File elfFile{"a.out"};
-
-    cout << elfFile << endl;
-
 }

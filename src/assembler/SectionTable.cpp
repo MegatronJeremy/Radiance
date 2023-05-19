@@ -1,4 +1,4 @@
-#include "../inc/SectionTable.hpp"
+#include "../../inc/assembler/SectionTable.hpp"
 
 #include <iostream>
 

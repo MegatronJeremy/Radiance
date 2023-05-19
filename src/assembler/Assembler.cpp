@@ -1,5 +1,5 @@
-#include "../inc/Assembler.hpp"
-#include "../inc/Util.hpp"
+#include "../../inc/assembler/Assembler.hpp"
+#include "../../inc/common/Util.hpp"
 
 #include <stdexcept>
 #include <cstring>

@@ -1,39 +1,15 @@
-BINARY=bin
-CODEDIRS=./src/ ./misc/
-INCDICRS=./inc/ ./misc/
-OBJDIR=./out
-DEPDIR=./out
+SUBDIRS=./misc ./src/assembler
+TARGETS=all clean distribute diff
 
-CXX=g++
-OPT=-O3
-DEPFLAGS=-MP -MD
-CXXFLAGS=-Wall -Wextra -g $(foreach D,$(INCDIRS),-I$(D)) $(OPT) $(DEPFLAGS)
+$(TARGETS): subdirs
+	@echo making top $@
 
-CXXFILES=$(foreach D,$(CODEDIRS),$(wildcard $(D)/*.cpp))
+subdirs: $(SUBDIRS)
 
-OBJECTS=$(patsubst %.cpp,%.o,$(CXXFILES))
-DEPFILES=$(patsubst %.cpp,%.d,$(CXXFILES))
+$(SUBDIRS):
+	$(MAKE) -C $@ $(filter $(TARGETS),$(MAKECMDGOALS))
 
-all: $(BINARY)
+.PHONY: subdirs $(TARGETS) $(SUBDIRS)
 
-$(BINARY): $(OBJECTS)
-	$(MAKE) -C ./misc
-	$(CXX) -o $@ $^
-
-%.o:%.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
-
-clean:
-	rm -rf $(BINARY) $(OBJECTS) $(DEPFILES)
-
-distribute: clean
-	tar zcvf dist.tgz *
-
-diff:
-	$(info The status of the repository, and the volume of per-file changes:)
-	@git status
-	@git diff --stat
-
--include $(DEPFILES)
-
-.PHONY: all clean distribute diff
+%::
+	@echo making top $@
