@@ -19,10 +19,6 @@ Elf32_Shdr &SectionTable::get(Elf32_Section s) {
     return sectionDefinitions[s];
 }
 
-ostream &operator<<(ostream &os, const Elf32_Shdr &sd) {
-    return os << sd.sh_addr << " " << sd.sh_size;
-}
-
 ostream &operator<<(ostream &os, const SectionTable &st) {
     os << "Section table: " << endl;
     int i = 0;

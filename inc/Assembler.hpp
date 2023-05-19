@@ -68,8 +68,6 @@ public:
 
     void writeToOutputFile();
 
-    void readOutputFile();
-
     static void incLocationCounter(Elf32_Word bytes = 4);
 
     friend ostream &operator<<(ostream &os, const Assembler &as);

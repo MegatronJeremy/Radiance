@@ -132,6 +132,7 @@ void Assembler::insertSection(const string &section) {
 
     // insert as section
     Elf32_Shdr &sd = sectionTable.insertSectionDefinition();
+    sd.sh_type = SHT_PROGBITS;
 
     // insert section as symbol
     Elf32_Sym *sym = insertLocalSymbol(section);
@@ -161,7 +162,6 @@ void Assembler::endAssembly() {
     } else if (pass == 2) {
         initCurrentSectionPoolConstants();
         writeToOutputFile();
-        readOutputFile();
     }
 }
 
@@ -442,7 +442,7 @@ void Assembler::writeRelocationTables(vector<Elf32_Shdr> &additionalHeaders) {
         Elf32_Shdr sh{};
         sh.sh_size = relaTable.relocationEntries.size() * sizeof(Elf32_Rela);
         sh.sh_link = sec;
-        sh.sh_info = SHT_RELA;
+        sh.sh_type = SHT_RELA;
         sh.sh_offset = outputFile.tellp();
 
         // add relocation table section header
@@ -468,7 +468,9 @@ void Assembler::writeToOutputFile() {
     writeStringTable(additionalHeaders);
 
     elfHeader.e_shoff = outputFile.tellp(); // section header offset
-    cout << "Shoff: " << elfHeader.e_shoff << endl;
+
+    // all written section headers
+    elfHeader.e_shnum = sectionTable.sectionDefinitions.size() + additionalHeaders.size();
 
     // write main section headers
     for (auto &sh: sectionTable.sectionDefinitions) {
@@ -481,24 +483,11 @@ void Assembler::writeToOutputFile() {
         outputFile.write(reinterpret_cast<char *>(&sh), sizeof(sh));
     }
 
+    // write section header again to start of file, now with correct information
     outputFile.seekp(SEEK_SET);
     outputFile.write(reinterpret_cast<char *>(&elfHeader), sizeof(Elf32_Ehdr));
+
+    // close output file
+    outputFile.close();
 }
 
-
-void Assembler::readOutputFile() {
-    cout << "Reading output..." << endl;
-
-    ifstream file;
-    file.open("a.out", ios::in | ios::binary);
-
-    Elf32_Ehdr hdr;
-    file.read(reinterpret_cast<char *>(&hdr), sizeof(Elf32_Ehdr));
-
-    /*
-    std::string s;
-    std::getline(file, s, '\0');
-     za dohvatanje stringova
-     */
-
-}

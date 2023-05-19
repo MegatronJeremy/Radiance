@@ -35,12 +35,15 @@ struct Elf32_Ehdr {
     Elf32_Addr e_entry{};        /* Entry point virtual address */
     Elf32_Off e_phoff{};        /* Program header table file offset */
     Elf32_Off e_shoff{};        /* Section header table file offset */
-    Elf32_Half e_ehsize{};        /* ELF header size in bytes */
-    Elf32_Half e_phentsize{};        /* Program header table entry size */
     Elf32_Half e_phnum{};        /* Program header table entry count */
-    Elf32_Half e_shentsize{};        /* Section header table entry size */
     Elf32_Half e_shnum{};        /* Section header table entry count */
-    Elf32_Half e_shstrndx{};        /* Section header string table index */
+
+    friend ostream &operator<<(ostream &os, const Elf32_Ehdr &ehdr) {
+        os << "e_ident: " << ehdr.e_ident << " e_type: " << ehdr.e_type << " e_entry: " << ehdr.e_entry << " e_phoff: "
+           << ehdr.e_phoff << " e_shoff: " << ehdr.e_shoff << " e_phnum: " << ehdr.e_phnum << " e_shnum: "
+           << ehdr.e_shnum;
+        return os;
+    }
 };
 
 
@@ -61,6 +64,12 @@ struct Elf32_Sym {
     Elf32_Addr st_value{};        /* Symbol value */
     unsigned char st_info{};        /* Symbol type and binding */
     Elf32_Section st_shndx{};        /* Section index */
+
+    friend ostream &operator<<(ostream &os, const Elf32_Sym &sym) {
+        os << "st_name: " << sym.st_name << " st_value: " << sym.st_value << " st_info: " << sym.st_info
+           << " st_shndx: " << sym.st_shndx;
+        return os;
+    }
 };
 
 /* Legal values for ST_BIND subfield of st_info (symbol binding).  */
@@ -86,6 +95,11 @@ struct Elf32_Rela {
     Elf32_Addr r_offset{};        /* Address in section */
     Elf32_Word r_info{};            /* Relocation type and symbol index */
     Elf32_Sword r_addend{};        /* Addend */
+
+    friend ostream &operator<<(ostream &os, const Elf32_Rela &rela) {
+        os << "r_offset: " << rela.r_offset << " r_info: " << rela.r_info << " r_addend: " << rela.r_addend;
+        return os;
+    }
 };
 
 /* Relocation types.  */
@@ -107,16 +121,16 @@ struct Elf32_Rela {
 struct Elf32_Shdr {
     Elf32_Word sh_name{};        /* Section name (string tbl index) */
     Elf32_Word sh_type{};        /* Section type */
-    Elf32_Word sh_flags{};        /* Section flags */
     Elf32_Addr sh_addr{};        /* Section virtual addr at execution */
     Elf32_Off sh_offset{};        /* Section file offset */
     Elf32_Word sh_size{};        /* Section size in bytes */
     Elf32_Word sh_link{};        /* Link to another section */
-    Elf32_Word sh_info{};        /* Additional section information */
-    Elf32_Word sh_addralign{};        /* Section alignment */
-    Elf32_Word sh_entsize{};        /* Entry size if section holds table */
 
-    friend ostream &operator<<(ostream &os, const Elf32_Shdr &sh);
+    friend ostream &operator<<(ostream &os, const Elf32_Shdr &shdr) {
+        os << "sh_name: " << shdr.sh_name << " sh_type: " << shdr.sh_type << " sh_addr: " << shdr.sh_addr
+           << " sh_offset: " << shdr.sh_offset << " sh_size: " << shdr.sh_size << " sh_link: " << shdr.sh_link;
+        return os;
+    }
 };
 
 /* Special section indices.  */
@@ -139,16 +153,3 @@ struct Elf32_Shdr {
 #define SHF_ALLOC         (1 << 1)    /* Occupies memory during execution */
 #define SHF_EXECINSTR         (1 << 2)    /* Executable */
 #define SHF_INFO_LINK         (1 << 6)    /* `sh_info' contains SHT index */
-
-
-struct ELF_File {
-    Elf32_Ehdr elfHeader;
-    uint8_t text[8]{};
-    uint8_t data[88888888]{};
-    uint8_t bss[8]{};
-    Elf32_Sym symtab[8];
-    uint8_t strtab[8]{};
-    Elf32_Rela relaText[1];
-    uint8_t shstrtab[8]{};
-    Elf32_Shdr sectionHeaderTable[8];
-};

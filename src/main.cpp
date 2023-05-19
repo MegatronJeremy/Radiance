@@ -1,7 +1,9 @@
 #include "../inc/Assembler.hpp"
+#include "../inc/Elf32File.hpp"
 
 #include <iostream>
 #include <memory>
+
 
 using namespace std;
 
@@ -13,7 +15,7 @@ extern FILE *yyin;
 
 int lineNum;
 
-int main(int argc, char **argv) {
+int assemble(int argc, char **argv) {
     if (argc < 3) {
         as = make_unique<Assembler>();
     } else {
@@ -58,7 +60,14 @@ int main(int argc, char **argv) {
             break;
         }
     }
+    return 0;
+}
 
+int main(int argc, char **argv) {
+    assemble(argc, argv);
 
+    Elf32File elfFile{"a.out"};
+
+    cout << elfFile << endl;
 
 }
