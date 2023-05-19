@@ -16,15 +16,11 @@ extern FILE *yyin;
 int lineNum;
 
 int main(int argc, char **argv) {
-    if (argc < 2) {
-        cerr << "Assembler error: No input file named" << endl;
-        return -3;
-    }
 
     string out_file = "a.out";
 
-    char c;
-    while ((c = static_cast<char>(getopt(argc, argv, "o:"))) != -1) {
+    int c;
+    while ((c = getopt(argc, argv, "o:")) != -1) {
         switch (c) {
             case 'o':
                 out_file = optarg;
@@ -35,6 +31,11 @@ int main(int argc, char **argv) {
     }
 
     as = make_unique<Assembler>(out_file);
+
+    if (optind >= argc) {
+        cerr << "Assembler error: No input file named" << endl;
+        return -3;
+    }
 
     // open a file handle to a particular file (optind points to first positional argument):
     FILE *myfile = fopen(argv[optind], "rw+");
