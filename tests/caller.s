@@ -1,6 +1,6 @@
 .intel_syntax noprefix
 
-.global sum
+.global slum
 .extern printf
 
 .data

@@ -46,9 +46,7 @@ public:
 
     void insertIretIns();
 
-    void generateRelocation(const string &symbol);
-
-    void generateAbsoluteRelocation(Elf32_Sym *sd);
+    void generateAbsoluteRelocation(const string &symbol);
 
     void generateRelativeRelocation(Elf32_Sym *sd);
 
@@ -74,7 +72,6 @@ public:
 
 
     ~Assembler() {
-        cout << *this << endl;
         outputFile.close();
     }
 

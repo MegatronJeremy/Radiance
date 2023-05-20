@@ -193,7 +193,7 @@ void Assembler::initSpaceWithConstant(const string &symbol) {
         addSymbolUsage(symbol);
     } else {
         // generate relocation
-        generateRelocation(symbol);
+        generateAbsoluteRelocation(symbol);
     }
     incLocationCounter();
 }
@@ -231,28 +231,35 @@ void Assembler::prepareSecondPass() {
     outputFile.write(reinterpret_cast<char *>(&elfHeader), sizeof(Elf32_Ehdr));
 }
 
-void Assembler::generateRelocation(const string &symbol) {
-    Elf32_Sym *sd = symbolTable.get(symbol);
 
-    if (ELF32_ST_BIND(sd->st_info) == STB_GLOBAL) {
-        generateAbsoluteRelocation(sd);
-    } else {
-        generateRelativeRelocation(sd);
-    }
-}
+void Assembler::generateAbsoluteRelocation(const string &symbol) {
 
-void Assembler::generateAbsoluteRelocation(Elf32_Sym *sd) {
     // for generating R_32S
+    Elf32_Sym *sd = symbolTable.get(symbol);
     Elf32_Rela rd;
 
-    rd.r_addend = 0;
-    rd.r_info = ELF32_R_INFO(sd->st_name, R_32S);
+    Elf32_Word relocationValue = 0;
+
+    if (sd->st_shndx == SHN_ABS) {
+        // already absolute, no need for relocation
+        relocationValue = sd->st_value;
+    } else if (ELF32_ST_BIND(sd->st_info) == STB_LOCAL) {
+        // if symbol is local use the section index
+        rd.r_addend = static_cast<Elf32_Sword>(sd->st_value);
+
+        Elf32_Word sectionName = sectionTable.get(sd->st_shndx).sh_name;
+
+        rd.r_info = ELF32_R_INFO(sectionName, R_32S);
+    } else {
+        // if global use symbol index
+        rd.r_addend = 0;
+        rd.r_info = ELF32_R_INFO(sd->st_name, R_32S);
+    }
+
     rd.r_offset = locationCounter;
 
     auto &currentRelaTable = relocationTable[currentSection];
     currentRelaTable.insertRelocationEntry(rd);
-
-    Elf32_Word relocationValue = sd->st_value;
 
     outputFile.write(reinterpret_cast<char *>(&relocationValue), sizeof(Elf32_Word));
 }
@@ -268,15 +275,26 @@ void Assembler::generateRelativeRelocation(Elf32_Sym *sd) {
         // generate relocation value
         Elf32_Rela rd;
 
-        rd.r_addend = -INSTRUCTION_LEN_BYTES;
-        rd.r_info = ELF32_R_INFO(sd->st_name, R_PC32);
+        if (ELF32_ST_BIND(sd->st_info) == STB_LOCAL) {
+            // if symbol is local use the section index
+            Elf32_Word sectionName = sectionTable.get(sd->st_shndx).sh_name;
+
+            rd.r_addend = static_cast<Elf32_Sword>(sd->st_value - locationCounter - INSTRUCTION_LEN_BYTES);
+            rd.r_info = ELF32_R_INFO(sectionName, R_PC32);
+        } else {
+            // use the symbol name if globally visible
+            rd.r_addend = -INSTRUCTION_LEN_BYTES;
+            rd.r_info = ELF32_R_INFO(sd->st_name, R_PC32);
+        }
+
+        // where to place relocation
         rd.r_offset = locationCounter;
 
         auto &currentRelaTable = relocationTable[currentSection];
         currentRelaTable.insertRelocationEntry(rd);
 
-        // offset to symbol address
-        relocationValue = sd->st_value - locationCounter;
+        // write zeroes
+        relocationValue = 0;
     }
 
     outputFile.write(reinterpret_cast<char *>(&relocationValue), sizeof(Elf32_Word));
