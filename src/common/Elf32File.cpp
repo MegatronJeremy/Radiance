@@ -38,15 +38,15 @@ void Elf32File::loadSection(const Elf32_Shdr &sh, Elf32_Section &currDataSection
         case SHT_PROGBITS:
         case SHT_NOBITS: {
             // load data section
-            vector<unsigned char> v;
+            vector<char> v;
 
             v.resize(sh.sh_size);
 
-            file.read(reinterpret_cast<char *>(v.data()), sh.sh_size);
+            file.read(v.data(), sh.sh_size);
 
             stringstream s;
 
-            s.write(reinterpret_cast<char *>(&v), sh.sh_size);
+            s.write(v.data(), sh.sh_size);
 
             dataSections[currDataSection++] = std::move(s);
             break;
@@ -213,9 +213,9 @@ void Elf32File::writeRelocationTables(vector<Elf32_Shdr> &additionalHeaders, fst
 void Elf32File::writeDataSections(fstream &file) {
     for (size_t i = 1; i <= dataSections.size(); i++) {
         stringstream &s = dataSections[i];
-        Elf32_Shdr sh = sectionTable.get(i);
+        Elf32_Shdr &sh = sectionTable.get(i);
         sh.sh_offset = file.tellp(); // section 0 is reserved
-        file.write(reinterpret_cast<char *>(s.rdbuf()), sh.sh_size);
+        file << s.rdbuf();
     }
 }
 
