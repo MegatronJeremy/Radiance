@@ -26,6 +26,7 @@ typedef uint16_t Elf32_Section;
 
 /* The ELF file header.  This appears at the start of every ELF file.  */
 
+#define	ELFMAG		"\177ELF"
 #define EI_NIDENT (8)
 
 struct Elf32_Ehdr {

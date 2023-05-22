@@ -243,15 +243,17 @@ void Assembler::generateAbsoluteRelocation(const string &symbol) {
     if (sd->st_shndx == SHN_ABS) {
         // already absolute, no need for relocation
         relocationValue = sd->st_value;
-    } else if (ELF32_ST_BIND(sd->st_info) == STB_LOCAL) {
+        return;
+    } else if (sd->st_shndx != SHN_UNDEF && ELF32_ST_BIND(sd->st_info) == STB_LOCAL) {
         // if symbol is local use the section index
         rd.r_addend = static_cast<Elf32_Sword>(sd->st_value);
 
         Elf32_Word sectionName = sectionTable.get(sd->st_shndx).sh_name;
 
         rd.r_info = ELF32_R_INFO(sectionName, R_32S);
+        cout << "W section: " << sectionName << endl;
     } else {
-        // if global use symbol index
+        // if global or undefined use symbol index
         rd.r_addend = 0;
         rd.r_info = ELF32_R_INFO(sd->st_name, R_32S);
     }
@@ -260,6 +262,9 @@ void Assembler::generateAbsoluteRelocation(const string &symbol) {
 
     auto &currentRelaTable = relocationTable[currentSection];
     currentRelaTable.insertRelocationEntry(rd);
+
+    cout << rd << endl;
+    cout << sd->st_name << endl;
 
     outputFile.write(reinterpret_cast<char *>(&relocationValue), sizeof(Elf32_Word));
 }

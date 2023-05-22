@@ -1,6 +1,7 @@
 #include "../../inc/common/Elf32File.hpp"
 
 #include <getopt.h>
+#include <memory>
 
 
 int main(int argc, char **argv) {
@@ -24,15 +25,21 @@ int main(int argc, char **argv) {
         return -3;
     }
 
-    Elf32File file{argv[optind]};
+    unique_ptr<Elf32File> eFile;
+    try {
+        eFile = make_unique<Elf32File>(argv[optind]);
+    } catch (exception &e) {
+        cout << e.what() << endl;
+        return -1;
+    }
 
     if (genOutput) {
         ofstream f;
         f.open(outFile, ios::out);
-        f << file;
+        f << *eFile;
         f.close();
     } else {
-        cout << file << endl;
+        cout << *eFile << endl;
     }
 
 }

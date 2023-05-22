@@ -1,11 +1,16 @@
 #include "../../inc/common/Elf32File.hpp"
 #include "../../inc/common/Ins32.hpp"
+#include <cstring>
 
 Elf32File::Elf32File(const string &fileName) {
     // load file and everything that goes with it
     file.open(fileName, ios::in | ios::binary);
 
     file.read(reinterpret_cast<char *>(&elfHeader), sizeof(Elf32_Ehdr));
+
+    if (strcmp(reinterpret_cast<const char *>(elfHeader.e_ident), ELFMAG) != 0) {
+        throw runtime_error("Readobj error: invalid ELF format!");
+    }
 
     // seek to section header offset from file start
     file.seekg(elfHeader.e_shoff, ios::beg);
@@ -22,7 +27,6 @@ Elf32File::Elf32File(const string &fileName) {
     for (auto &sh: sectionHeaderTable) {
         loadSection(sh);
     }
-
 }
 
 void Elf32File::loadSection(const Elf32_Shdr &sh) {
@@ -32,9 +36,9 @@ void Elf32File::loadSection(const Elf32_Shdr &sh) {
         case SHT_PROGBITS:
         case SHT_NOBITS: {
             // load data section
-            vector<Elf32_Word> v;
+            vector<unsigned char> v;
 
-            v.resize(sh.sh_size / WORD_LEN_BYTES);
+            v.resize(sh.sh_size);
 
             file.read(reinterpret_cast<char *>(v.data()), sh.sh_size);
 
@@ -112,6 +116,17 @@ ostream &operator<<(ostream &os, const Elf32File &file) {
     for (auto &sh: file.sectionHeaderTable) {
         os << sh << endl;
     }
+    for (Elf32_Word i = 0; i < file.dataSections.size(); i++) {
+        cout << "Contents of section: " << file.sectionName(i + 1) << endl;
+        for (auto &word: file.dataSections[i]) {
+            cout << hex << word << endl;
+        }
+    }
     return os;
 }
+
+Elf32File::~Elf32File() {
+    file.close();
+}
+
 

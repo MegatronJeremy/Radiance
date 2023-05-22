@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
             {nullptr, 0,                       nullptr, 0}
     };
 
-    string out_file = "a.out";
+    string out_file = "a.hex";
     vector<pair<string, Elf32_Word >> place_defs;
 
 
@@ -53,15 +53,30 @@ int main(int argc, char **argv) {
                 return -2;
         }
     }
+    if (!hex && !rela) {
+        cerr << "Linker error: Must name either --relocatable or --hex!" << endl;
+        return -4;
+    }
     if (optind >= argc) {
         cerr << "Linker error: No input files named" << endl;
-        return -3;
+        return -5;
     }
     vector<string> input_files;
     while (optind < argc) {
-        input_files.emplace_back(argv[optind++]);
+        string file = argv[optind];
+        input_files.emplace_back(file);
+        cout << file << endl;
+        optind++;
     }
 
-    Linker ld{input_files, out_file, place_defs, hex};
+
+    try {
+        Linker ld{input_files, out_file, place_defs, hex};
+
+        ld.run();
+    } catch (exception &e) {
+        cerr << e.what() << endl;
+        return -1;
+    }
 
 }

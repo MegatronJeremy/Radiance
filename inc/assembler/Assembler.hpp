@@ -2,7 +2,7 @@
 
 #include <fstream>
 #include "SectionTable.hpp"
-#include "SymbolTable.hpp"
+#include "../common/SymbolTable.hpp"
 #include "RelocationTable.hpp"
 #include "LiteralTable.hpp"
 #include "../common/Ins32.hpp"
