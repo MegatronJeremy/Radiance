@@ -6,11 +6,13 @@
 Linker::Linker(const vector<string> &inputFiles, string outFile,
                const vector<pair<string, Elf32_Addr>> &placeDefs, bool hexMode) :
         outFile(std::move(outFile)),
-        placeDefs(placeDefs),
-        hexMode(hexMode) {
+        hexMode(hexMode),
+        placeDefs(placeDefs) {
     inputFileObjects.reserve(inputFiles.size());
     for (auto &f: inputFiles) {
-        unique_ptr<Elf32File> e32 = make_unique<Elf32File>(f);
+        unique_ptr<Elf32File> e32 = make_unique<Elf32File>();
+        e32->loadFromInputFile(f);
+
         if (e32->elfHeader.e_type != ET_REL) {
             throw runtime_error("Linker error: non-relocatable file " + f + " named as input");
         }
@@ -37,7 +39,7 @@ void Linker::run() {
 }
 
 void Linker::getSectionSizes(unique_ptr<Elf32File> &eFile) {
-    for (Elf32_Shdr &sh: eFile->sectionHeaderTable) {
+    for (Elf32_Shdr &sh: eFile->sectionTable.sectionDefinitions) {
         if (hexMode && sh.sh_type != SHT_PROGBITS && sh.sh_type != SHT_NOBITS) {
             // only keep program sections
             continue;
@@ -49,7 +51,7 @@ void Linker::getSectionSizes(unique_ptr<Elf32File> &eFile) {
             sectionSizes[sectionName] = 0;
         }
         // offset from start of section is end of last section (from zero)
-        sh.sh_offset = sectionSizes[sectionName];
+        sh.sh_addr = sectionSizes[sectionName];
         // update new end of section
         sectionSizes[sectionName] += sh.sh_size;
     }
@@ -58,7 +60,7 @@ void Linker::getSectionSizes(unique_ptr<Elf32File> &eFile) {
 void Linker::getSectionMappings() {
     Elf32_Word location = 0;
     for (unique_ptr<Elf32File> &eFile: inputFileObjects) {
-        for (Elf32_Shdr &sh: eFile->sectionHeaderTable) {
+        for (Elf32_Shdr &sh: eFile->sectionTable.sectionDefinitions) {
             if (sh.sh_type != SHT_PROGBITS && sh.sh_type != SHT_NOBITS) {
                 // only keep program sections
                 continue;
@@ -66,10 +68,10 @@ void Linker::getSectionMappings() {
 
             string sectionName = eFile->sectionName(sh);
             if (sectionMap.find(sectionName) != sectionMap.end()) { // section was already mapped, add ofsset
-                sh.sh_offset += sectionMap[sectionName];
+                sh.sh_addr += sectionMap[sectionName];
             } else {
-                sh.sh_offset += location; // sh_offset starts from zero
-                sectionMap[sectionName] = sh.sh_offset;
+                sh.sh_addr += location; // sh_addr starts from zero
+                sectionMap[sectionName] = sh.sh_addr;
                 location += sectionSizes[sectionName];
             }
         }
@@ -79,7 +81,7 @@ void Linker::getSectionMappings() {
 
 void Linker::generateSymbols() {
     for (unique_ptr<Elf32File> &eFile: inputFileObjects) {
-        for (Elf32_Sym &sym: eFile->symbolTable) {
+        for (Elf32_Sym &sym: eFile->symbolTable.symbolDefinitions) {
             string symName = eFile->symbolName(sym);
             cout << "Handling: ---------------- " << symName << endl;
 
@@ -118,7 +120,7 @@ void Linker::generateSymbols() {
                 cout << "two" << endl;
                 // subsection offset + address of new section
                 string sectionName = eFile->sectionName(sym);
-                sym.st_value += sectionMap[sectionName] + eFile->sectionHeaderTable[sym.st_shndx].sh_offset;
+                sym.st_value += sectionMap[sectionName] + eFile->sectionTable.get(sym.st_shndx).sh_addr;
 
                 cout << "three" << endl;
                 // and define all undefined syms
@@ -134,7 +136,7 @@ void Linker::generateSymbols() {
                 cout << sym << endl;
                 // just update local symbol value
                 string sectionName = eFile->sectionName(sym);
-                sym.st_value += sectionMap[sectionName] + eFile->sectionHeaderTable[sym.st_shndx].sh_offset;
+                sym.st_value += sectionMap[sectionName] + eFile->sectionTable.get(sym.st_shndx).sh_addr;
                 cout << "ok" << endl;
             }
         }
@@ -153,48 +155,34 @@ void Linker::handleRelocations(unique_ptr<Elf32File> &eFile) {
     for (auto &it: eFile->relocationTables) {
         Elf32_Section sec = it.first;
         Elf32_Sym &secSym = eFile->sectionSymbol(sec);
-        vector<unsigned char> &secData = eFile->dataSections[sec - 1];
-        auto *wordArray = reinterpret_cast<Elf32_Word *>(secData.data());
+        stringstream &secData = eFile->dataSections[sec];
         cout << secSym << endl;
-        for (auto &rel: it.second) {
-            Elf32_Sym &sym = eFile->symbolTable[ELF32_R_SYM(rel.r_info)];
+        for (auto &rel: it.second.relocationEntries) {
+            Elf32_Sym &sym = eFile->symbolTable.symbolDefinitions[ELF32_R_SYM(rel.r_info)];
             cout << ELF32_R_SYM(rel.r_info) << " " << ELF32_R_TYPE(rel.r_info) << endl;
             cout << "Relocating: " << sym << endl;
-            Elf32_Addr offsWord = rel.r_offset / sizeof(Elf32_Word);
+
+            Elf32_Addr relVal;
+
             switch (rel.r_info) {
                 case R_32S:
                 case R_32:
                     // absolute relocation: S + A
-                    wordArray[offsWord] = sym.st_value + rel.r_addend;
+                    relVal = sym.st_value + rel.r_addend;
+                    secData.seekp(rel.r_offset);
                     break;
                 case R_PC32:
                     // relative relocation: S - P + A
-                    wordArray[offsWord] = sym.st_value - (rel.r_offset + secSym.st_value) + rel.r_addend;
+                    relVal = sym.st_value - (rel.r_offset + secSym.st_value) + rel.r_addend;
+                    secData.seekp(rel.r_offset);
+                    secData.write(reinterpret_cast<char *>(&sym.st_value), sizeof(Elf32_Addr));
                     break;
                 default:
-                    continue;
+                    throw runtime_error("Linker error: unrecognized relocation type");
             }
+
+            secData.write(reinterpret_cast<char *>(&relVal), sizeof(Elf32_Addr));
         }
     }
 }
 
-void Linker::writeHexOutput() {
-    ofstream outF{outFile, ios::out};
-    for (unique_ptr<Elf32File> &file: inputFileObjects) {
-        Elf32_Section i = 1;
-        for (vector<unsigned char> &data: file->dataSections) {
-            cout << "Writing section: " << endl;
-            cout << file->sectionName(i) << endl;
-            Elf32_Word startLoc = file->sectionHeaderTable[i++].sh_offset;
-            for (Elf32_Word j = 0; j < data.size(); j += 8) {
-                outF << setw(4) << setfill('0') << hex << startLoc + j << ": ";
-
-                for (Elf32_Word k = j; k < min(data.size(), static_cast<unsigned long>(j + 8)); k++) {
-                    outF << setw(2) << setfill('0') << hex << static_cast<int>(data[k]) << " ";
-                }
-
-                outF << endl;
-            }
-        }
-    }
-}

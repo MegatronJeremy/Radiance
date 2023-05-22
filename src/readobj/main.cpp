@@ -27,7 +27,8 @@ int main(int argc, char **argv) {
 
     unique_ptr<Elf32File> eFile;
     try {
-        eFile = make_unique<Elf32File>(argv[optind]);
+        eFile = make_unique<Elf32File>();
+        eFile->loadFromInputFile(argv[optind]);
     } catch (exception &e) {
         cout << e.what() << endl;
         return -1;
@@ -41,5 +42,4 @@ int main(int argc, char **argv) {
     } else {
         cout << *eFile << endl;
     }
-
 }

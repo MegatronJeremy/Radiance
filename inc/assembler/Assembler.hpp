@@ -1,12 +1,13 @@
 #pragma once
 
 #include <fstream>
-#include "SectionTable.hpp"
+#include "../common/SectionTable.hpp"
 #include "../common/SymbolTable.hpp"
-#include "RelocationTable.hpp"
-#include "LiteralTable.hpp"
+#include "../common/RelocationTable.hpp"
+#include "../common/LiteralTable.hpp"
 #include "../common/Ins32.hpp"
 #include "../../misc/parser.hpp"
+#include "../common/Elf32File.hpp"
 
 class Assembler {
 public:
@@ -56,35 +57,15 @@ public:
 
     bool nextPass();
 
-    void prepareSecondPass();
-
-    void writeSymbolTable(vector<Elf32_Shdr> &additionalHeaders);
-
-    void writeStringTable(vector<Elf32_Shdr> &additionalHeaders);
-
-    void writeRelocationTables(vector<Elf32_Shdr> &additionalHeaders);
-
-    void writeToOutputFile();
-
     static void incLocationCounter(Elf32_Word bytes = 4);
-
-    friend ostream &operator<<(ostream &os, const Assembler &as);
-
-
-    ~Assembler() {
-        outputFile.close();
-    }
 
 private:
     Elf32_Ehdr elfHeader;
 
-    ofstream outputFile;
-
-    SectionTable sectionTable;
-    SymbolTable symbolTable;
+    // output file wrapper
+    Elf32File eFile;
 
     // one for each section
-    vector<RelocationTable> relocationTable;
     vector<LiteralTable> literalTable;
 
     uint32_t currentSection = SHN_UNDEF;

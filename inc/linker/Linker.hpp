@@ -27,8 +27,6 @@ private:
 
     static void handleRelocations(unique_ptr<Elf32File> &eFile);
 
-    void writeHexOutput();
-
     vector<unique_ptr<Elf32File>> inputFileObjects;
     string outFile;
     bool hexMode;

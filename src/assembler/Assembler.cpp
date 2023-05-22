@@ -14,13 +14,13 @@ Assembler::Assembler(string outFile) : outFile(std::move(outFile)) {
     nsd.st_shndx = SHN_UNDEF;
     nsd.st_info = ELF32_ST_INFO(STB_LOCAL, STT_SECTION);
 
-    symbolTable.insertSymbolDefinition(nsd, "UND");
+    eFile.symbolTable.insertSymbolDefinition(nsd, "UND");
     Elf32_Shdr nsh{};
 
-    sectionTable.insertSectionDefinition(nsh);
+    eFile.sectionTable.insertSectionDefinition(nsh);
 
     literalTable.emplace_back();
-    relocationTable.emplace_back();
+//      TODO  eFile.relocationTables[currentSection] = RelocationTable{};
 
     // relocatable file
     elfHeader.e_type = ET_REL;
@@ -36,7 +36,7 @@ Elf32_Sym *Assembler::insertLocalSymbol(const string &symbol) {
         return nullptr;
     }
 
-    Elf32_Sym *sd = symbolTable.get(symbol);
+    Elf32_Sym *sd = eFile.symbolTable.get(symbol);
 
     if (sd != nullptr && sd->st_shndx == SHN_UNDEF) {
         sd->st_shndx = currentSection;
@@ -51,12 +51,12 @@ Elf32_Sym *Assembler::insertLocalSymbol(const string &symbol) {
         nsd.st_value = locationCounter;
         nsd.st_info = ELF32_ST_INFO(STB_LOCAL, STT_NOTYPE); // default values
 
-        return symbolTable.insertSymbolDefinition(nsd, symbol);
+        return eFile.symbolTable.insertSymbolDefinition(nsd, symbol);
     }
 }
 
 void Assembler::insertAbsoluteSymbol(const string &symbol, uint32_t symbolValue) {
-    Elf32_Sym *sd = symbolTable.get(symbol);
+    Elf32_Sym *sd = eFile.symbolTable.get(symbol);
 
     if (sd != nullptr && sd->st_shndx != SHN_ABS && sd->st_shndx != SHN_UNDEF) {
         throw runtime_error("Assembler error: symbol was already defined!");
@@ -68,7 +68,7 @@ void Assembler::insertAbsoluteSymbol(const string &symbol, uint32_t symbolValue)
         nsd.st_shndx = SHN_ABS;
         nsd.st_value = symbolValue;
 
-        symbolTable.insertSymbolDefinition(nsd, symbol);
+        eFile.symbolTable.insertSymbolDefinition(nsd, symbol);
     }
 }
 
@@ -77,7 +77,7 @@ void Assembler::insertGlobalSymbol(const string &symbol) {
         return; // do nothing
     }
 
-    Elf32_Sym *sd = symbolTable.get(symbol);
+    Elf32_Sym *sd = eFile.symbolTable.get(symbol);
 
     if (sd != nullptr) {
         if (ELF32_ST_TYPE(sd->st_info) == STT_SECTION) {
@@ -90,18 +90,18 @@ void Assembler::insertGlobalSymbol(const string &symbol) {
         Elf32_Sym nsd;
         nsd.st_info = ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE); // everything else is default
 
-        symbolTable.insertSymbolDefinition(nsd, symbol);
+        eFile.symbolTable.insertSymbolDefinition(nsd, symbol);
     }
 }
 
 void Assembler::addSymbolUsage(const string &symbol) {
-    if (pass == 2 || currentSection == SHN_UNDEF || symbolTable.get(symbol) != nullptr) {
+    if (pass == 2 || currentSection == SHN_UNDEF || eFile.symbolTable.get(symbol) != nullptr) {
         return;
     }
 
     Elf32_Sym sd{}; // globalDef is false at this point
 
-    symbolTable.insertSymbolDefinition(sd, symbol);
+    eFile.symbolTable.insertSymbolDefinition(sd, symbol);
 }
 
 void Assembler::registerSection(const string &section) {
@@ -112,26 +112,28 @@ void Assembler::registerSection(const string &section) {
         currentSection++; // next section
         locationCounter = 0; // reset location counter
 
-        Elf32_Shdr &sh = sectionTable.get(currentSection);
-        sh.sh_offset = outputFile.tellp(); // set offset to current location
+        Elf32_Shdr &sh = eFile.sectionTable.get(currentSection);
+
+        // TODO
+//        sh.sh_offset = eFile.outputFile.tellp(); // set offset to current location
     }
 }
 
 void Assembler::insertSection(const string &section) {
     // open new literal table and relocation table for current section
     literalTable.emplace_back();
-    relocationTable.emplace_back();
 
     currentSection++;
+//   TODO eFile.relocationTables[currentSection] = RelocationTable{};
 
     // close last section
-    sectionTable.closeLastSection(locationCounter);
+    eFile.sectionTable.closeLastSection(locationCounter);
 
     // reset location counter
     locationCounter = 0;
 
     // insert as section
-    Elf32_Shdr &sd = sectionTable.insertSectionDefinition();
+    Elf32_Shdr &sd = eFile.sectionTable.insertSectionDefinition();
     sd.sh_type = SHT_PROGBITS;
 
     // insert section as symbol
@@ -158,28 +160,16 @@ void Assembler::initCurrentSectionPoolConstants() {
 
 void Assembler::endAssembly() {
     if (pass == 1) {
-        sectionTable.closeLastSection(locationCounter);
+        eFile.sectionTable.closeLastSection(locationCounter);
     } else if (pass == 2) {
         initCurrentSectionPoolConstants();
-        writeToOutputFile();
+        eFile.writeToOutputFile(outFile);
     }
-}
-
-ostream &operator<<(ostream &os, const Assembler &as) {
-    os << endl << as.sectionTable << endl << as.symbolTable << endl;
-    for (const auto &it: as.relocationTable) {
-        os << it << endl;
-    }
-    return os;
 }
 
 bool Assembler::nextPass() {
     if (pass == 2)
         return false;
-
-    if (pass == 1) {
-        prepareSecondPass();
-    }
 
     currentSection = SHN_UNDEF;
     locationCounter = 0;
@@ -202,7 +192,7 @@ void Assembler::initSpaceWithConstant(Elf32_Word literal) {
     // to be called with .word or at the end of the second pass for the current section, to init all pool values
     if (pass == 2) {
         // generate no relocation
-        outputFile.write(reinterpret_cast<char *>(&literal), sizeof(Elf32_Word));
+        eFile.dataSections[currentSection].write(reinterpret_cast<char *>(&literal), sizeof(Elf32_Word));
     }
     incLocationCounter();
 }
@@ -217,7 +207,7 @@ void Assembler::initAscii(string ascii) {
     if (pass == 1) {
         return; // do nothing
     } else {
-        outputFile << ascii;
+        eFile.dataSections[currentSection] << ascii;
     }
 }
 
@@ -225,17 +215,11 @@ void Assembler::incLocationCounter(Elf32_Word bytes) {
     locationCounter += bytes;
 }
 
-void Assembler::prepareSecondPass() {
-    outputFile.open(outFile, ios::out | ios::binary);
-
-    outputFile.write(reinterpret_cast<char *>(&elfHeader), sizeof(Elf32_Ehdr));
-}
-
 
 void Assembler::generateAbsoluteRelocation(const string &symbol) {
 
     // for generating R_32S
-    Elf32_Sym *sd = symbolTable.get(symbol);
+    Elf32_Sym *sd = eFile.symbolTable.get(symbol);
     Elf32_Rela rd;
 
     Elf32_Word relocationValue = 0;
@@ -248,10 +232,9 @@ void Assembler::generateAbsoluteRelocation(const string &symbol) {
         // if symbol is local use the section index
         rd.r_addend = static_cast<Elf32_Sword>(sd->st_value);
 
-        Elf32_Word sectionName = sectionTable.get(sd->st_shndx).sh_name;
+        Elf32_Word sectionName = eFile.sectionTable.get(sd->st_shndx).sh_name;
 
         rd.r_info = ELF32_R_INFO(sectionName, R_32S);
-        cout << "W section: " << sectionName << endl;
     } else {
         // if global or undefined use symbol index
         rd.r_addend = 0;
@@ -260,13 +243,10 @@ void Assembler::generateAbsoluteRelocation(const string &symbol) {
 
     rd.r_offset = locationCounter;
 
-    auto &currentRelaTable = relocationTable[currentSection];
+    auto &currentRelaTable = eFile.relocationTables[currentSection];
     currentRelaTable.insertRelocationEntry(rd);
 
-    cout << rd << endl;
-    cout << sd->st_name << endl;
-
-    outputFile.write(reinterpret_cast<char *>(&relocationValue), sizeof(Elf32_Word));
+    eFile.dataSections[currentSection].write(reinterpret_cast<char *>(&relocationValue), sizeof(Elf32_Word));
 }
 
 
@@ -282,7 +262,7 @@ void Assembler::generateRelativeRelocation(Elf32_Sym *sd) {
 
         if (ELF32_ST_BIND(sd->st_info) == STB_LOCAL) {
             // if symbol is local use the section index
-            Elf32_Word sectionName = sectionTable.get(sd->st_shndx).sh_name;
+            Elf32_Word sectionName = eFile.sectionTable.get(sd->st_shndx).sh_name;
 
             rd.r_addend = static_cast<Elf32_Sword>(sd->st_value - locationCounter - INSTRUCTION_LEN_BYTES);
             rd.r_info = ELF32_R_INFO(sectionName, R_PC32);
@@ -295,14 +275,14 @@ void Assembler::generateRelativeRelocation(Elf32_Sym *sd) {
         // where to place relocation
         rd.r_offset = locationCounter;
 
-        auto &currentRelaTable = relocationTable[currentSection];
+        auto &currentRelaTable = eFile.relocationTables[currentSection];
         currentRelaTable.insertRelocationEntry(rd);
 
         // write zeroes
         relocationValue = 0;
     }
 
-    outputFile.write(reinterpret_cast<char *>(&relocationValue), sizeof(Elf32_Word));
+    eFile.dataSections[currentSection].write(reinterpret_cast<char *>(&relocationValue), sizeof(Elf32_Word));
 }
 
 void Assembler::zeroInitSpace(Elf32_Word bytes) {
@@ -310,7 +290,7 @@ void Assembler::zeroInitSpace(Elf32_Word bytes) {
 
     char buff[bytes];
     memset(buff, 0, sizeof(buff));
-    outputFile.write(buff, bytes);
+    eFile.dataSections[currentSection].write(buff, bytes);
 }
 
 void Assembler::insertInstruction(yytokentype token, const vector<int16_t> &fields) {
@@ -321,7 +301,7 @@ void Assembler::insertInstruction(yytokentype token, const vector<int16_t> &fiel
     }
 
     Ins32 ins32 = Instruction32::getInstruction(token, fields);
-    outputFile.write(reinterpret_cast<char *>(&ins32), sizeof(Ins32));
+    eFile.dataSections[currentSection].write(reinterpret_cast<char *>(&ins32), sizeof(Ins32));
 }
 
 Elf32_Addr Assembler::getPoolConstantAddr(const PoolConstant &constant) {
@@ -336,7 +316,7 @@ Elf32_Addr Assembler::getPoolConstantAddr(const PoolConstant &constant) {
         return currentLiteralTable.getConstantAddress(constant);
     }
 
-    Elf32_Shdr &section = sectionTable.get(currentSection);
+    Elf32_Shdr &section = eFile.sectionTable.get(currentSection);
 
     Elf32_Addr sectionEnd = section.sh_size;
     currentLiteralTable.insertConstant(constant, sectionEnd);
@@ -415,102 +395,5 @@ void Assembler::insertStoreIns(yytokentype type, const PoolConstant &poolConstan
 void Assembler::insertIretIns() {
     insertInstruction(POP, {PC});
     insertInstruction(POP, {STATUS});
-}
-
-void Assembler::writeSymbolTable(vector<Elf32_Shdr> &additionalHeaders) {
-    // add symbol table section header
-    Elf32_Shdr sh{};
-    sh.sh_size = symbolTable.symbolDefinitions.size() * sizeof(Elf32_Sym);
-    sh.sh_type = SHT_SYMTAB;
-    sh.sh_link = SHT_STRTAB;
-    // current position of file
-    sh.sh_offset = outputFile.tellp();
-
-    additionalHeaders.push_back(sh);
-
-    // symtab
-    for (auto &sd: symbolTable.symbolDefinitions) {
-        outputFile.write(reinterpret_cast<char *>(&sd), sizeof(sd));
-    }
-}
-
-void Assembler::writeStringTable(vector<Elf32_Shdr> &additionalHeaders) {
-    // add symbol table section header
-    Elf32_Shdr sh{};
-    sh.sh_type = SHT_STRTAB;
-    // current position of file
-    sh.sh_offset = outputFile.tellp();
-
-
-    // strtab
-    for (auto &str: symbolTable.symbolNames) {
-        const char *cst = str.c_str();
-        outputFile.write(cst, static_cast<long>(strlen(cst) + 1)); // +1 for terminator
-        sh.sh_size += strlen(cst) + 1;
-    }
-
-    additionalHeaders.push_back(sh);
-}
-
-void Assembler::writeRelocationTables(vector<Elf32_Shdr> &additionalHeaders) {
-    // rela tables
-    for (Elf32_Word sec = 0; sec < relocationTable.size(); sec++) {
-        auto &relaTable = relocationTable[sec];
-
-        // if no relocation entries skip
-        if (relaTable.relocationEntries.empty()) {
-            continue;
-        }
-
-        Elf32_Shdr sh{};
-        sh.sh_size = relaTable.relocationEntries.size() * sizeof(Elf32_Rela);
-        sh.sh_link = sec;
-        sh.sh_type = SHT_RELA;
-        sh.sh_offset = outputFile.tellp();
-
-        // add relocation table section header
-        additionalHeaders.push_back(sh);
-
-        for (auto &rd: relaTable.relocationEntries) {
-            outputFile.write(reinterpret_cast<char *>(&rd), sizeof(rd));
-        }
-    }
-}
-
-void Assembler::writeToOutputFile() {
-    // what is written here: Elf Header, Sections
-    // Need to do: symtab, strtab, rela
-
-    vector<Elf32_Shdr> additionalHeaders;
-
-    // write these first, before section header start
-    writeRelocationTables(additionalHeaders);
-
-    writeSymbolTable(additionalHeaders);
-
-    writeStringTable(additionalHeaders);
-
-    elfHeader.e_shoff = outputFile.tellp(); // section header offset
-
-    // all written section headers
-    elfHeader.e_shnum = sectionTable.sectionDefinitions.size() + additionalHeaders.size();
-
-    // write main section headers
-    for (auto &sh: sectionTable.sectionDefinitions) {
-        cout << sh << endl;
-        outputFile.write(reinterpret_cast<char *>(&sh), sizeof(sh));
-    }
-
-    // write additional section headers
-    for (auto &sh: additionalHeaders) {
-        outputFile.write(reinterpret_cast<char *>(&sh), sizeof(sh));
-    }
-
-    // write section header again to start of file, now with correct information
-    outputFile.seekp(SEEK_SET);
-    outputFile.write(reinterpret_cast<char *>(&elfHeader), sizeof(Elf32_Ehdr));
-
-    // close output file
-    outputFile.close();
 }
 

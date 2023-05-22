@@ -5,7 +5,6 @@
 using namespace std;
 
 Elf32_Sym *SymbolTable::insertSymbolDefinition(Elf32_Sym &sd, const string &name) {
-    cout << name << endl;
     symbolMappings[name] = sd.st_name = symbolDefinitions.size();
 
     symbolNames.emplace_back(name);
@@ -27,9 +26,6 @@ ostream &operator<<(ostream &os, const SymbolTable &st) {
     for (const Elf32_Sym &sd: st.symbolDefinitions) {
         os << sd << endl;
     }
-    os << endl << "Symbol mappings: " << endl;
-    for (auto &it: st.symbolMappings) {
-        cout << it.first << " " << it.second << endl;
-    }
     return os;
 }
+

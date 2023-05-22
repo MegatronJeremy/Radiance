@@ -1,4 +1,4 @@
-#include "../../inc/assembler/SectionTable.hpp"
+#include "../../inc/common/SectionTable.hpp"
 
 #include <iostream>
 
@@ -19,11 +19,20 @@ Elf32_Shdr &SectionTable::get(Elf32_Section s) {
     return sectionDefinitions[s];
 }
 
+const Elf32_Shdr &SectionTable::get(Elf32_Section s) const {
+    return sectionDefinitions[s];
+}
+
+void SectionTable::add(const Elf32_Shdr &shdr) {
+    sectionDefinitions.push_back(shdr);
+}
+
 ostream &operator<<(ostream &os, const SectionTable &st) {
-    os << "Section table: " << endl;
+    os << "Section header table: " << endl;
     int i = 0;
     for (const Elf32_Shdr &sd: st.sectionDefinitions) {
         os << sd << ": " << i++ << endl;
     }
     return os;
 }
+
