@@ -19,15 +19,15 @@ public:
 
 private:
 
-    void getSectionSizes(unique_ptr<Elf32File> &eFile);
+    void getSectionSizes(Elf32File &eFile);
 
     void getSectionMappings();
 
     void generateSymbols();
 
-    static void handleRelocations(unique_ptr<Elf32File> &eFile);
+    static void handleRelocations(Elf32File &eFile);
 
-    vector<unique_ptr<Elf32File>> inputFileObjects;
+    vector<Elf32File> inputFileObjects;
     string outFile;
     bool hexMode;
 

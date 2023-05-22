@@ -48,7 +48,6 @@ public:
     vector<string> stringTable;
     SectionTable sectionTable;
 
-
 private:
     void loadSection(const Elf32_Shdr &sh, fstream &file);
 

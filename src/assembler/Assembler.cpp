@@ -112,7 +112,7 @@ void Assembler::registerSection(const string &section) {
         currentSection++; // next section
         locationCounter = 0; // reset location counter
 
-        Elf32_Shdr &sh = eFile.sectionTable.get(currentSection);
+//        Elf32_Shdr &sh = eFile.sectionTable.get(currentSection);
 
         // TODO
 //        sh.sh_offset = eFile.outputFile.tellp(); // set offset to current location

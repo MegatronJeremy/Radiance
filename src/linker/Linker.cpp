@@ -8,12 +8,11 @@ Linker::Linker(const vector<string> &inputFiles, string outFile,
         outFile(std::move(outFile)),
         hexMode(hexMode),
         placeDefs(placeDefs) {
-    inputFileObjects.reserve(inputFiles.size());
     for (auto &f: inputFiles) {
-        unique_ptr<Elf32File> e32 = make_unique<Elf32File>();
-        e32->loadFromInputFile(f);
+        Elf32File e32;
+        e32.loadFromInputFile(f);
 
-        if (e32->elfHeader.e_type != ET_REL) {
+        if (e32.elfHeader.e_type != ET_REL) {
             throw runtime_error("Linker error: non-relocatable file " + f + " named as input");
         }
         inputFileObjects.emplace_back(std::move(e32));
@@ -34,18 +33,18 @@ void Linker::run() {
         handleRelocations(file);
     }
     if (hexMode) {
-        writeHexOutput();
+//        writeHexOutput();
     }
 }
 
-void Linker::getSectionSizes(unique_ptr<Elf32File> &eFile) {
-    for (Elf32_Shdr &sh: eFile->sectionTable.sectionDefinitions) {
+void Linker::getSectionSizes(Elf32File &eFile) {
+    for (Elf32_Shdr &sh: eFile.sectionTable.sectionDefinitions) {
         if (hexMode && sh.sh_type != SHT_PROGBITS && sh.sh_type != SHT_NOBITS) {
             // only keep program sections
             continue;
         }
 
-        string sectionName = eFile->sectionName(sh);
+        string sectionName = eFile.sectionName(sh);
         cout << "Getting size for: " << sectionName << endl;
         if (sectionSizes.find(sectionName) == sectionSizes.end()) {
             sectionSizes[sectionName] = 0;
@@ -59,14 +58,14 @@ void Linker::getSectionSizes(unique_ptr<Elf32File> &eFile) {
 
 void Linker::getSectionMappings() {
     Elf32_Word location = 0;
-    for (unique_ptr<Elf32File> &eFile: inputFileObjects) {
-        for (Elf32_Shdr &sh: eFile->sectionTable.sectionDefinitions) {
+    for (Elf32File &eFile: inputFileObjects) {
+        for (Elf32_Shdr &sh: eFile.sectionTable.sectionDefinitions) {
             if (sh.sh_type != SHT_PROGBITS && sh.sh_type != SHT_NOBITS) {
                 // only keep program sections
                 continue;
             }
 
-            string sectionName = eFile->sectionName(sh);
+            string sectionName = eFile.sectionName(sh);
             if (sectionMap.find(sectionName) != sectionMap.end()) { // section was already mapped, add ofsset
                 sh.sh_addr += sectionMap[sectionName];
             } else {
@@ -80,9 +79,9 @@ void Linker::getSectionMappings() {
 
 
 void Linker::generateSymbols() {
-    for (unique_ptr<Elf32File> &eFile: inputFileObjects) {
-        for (Elf32_Sym &sym: eFile->symbolTable.symbolDefinitions) {
-            string symName = eFile->symbolName(sym);
+    for (Elf32File &eFile: inputFileObjects) {
+        for (Elf32_Sym &sym: eFile.symbolTable.symbolDefinitions) {
+            string symName = eFile.symbolName(sym);
             cout << "Handling: ---------------- " << symName << endl;
 
             if (sym.st_shndx == SHN_ABS || sym.st_name == SHN_UNDEF) {
@@ -119,8 +118,8 @@ void Linker::generateSymbols() {
 
                 cout << "two" << endl;
                 // subsection offset + address of new section
-                string sectionName = eFile->sectionName(sym);
-                sym.st_value += sectionMap[sectionName] + eFile->sectionTable.get(sym.st_shndx).sh_addr;
+                string sectionName = eFile.sectionName(sym);
+                sym.st_value += sectionMap[sectionName] + eFile.sectionTable.get(sym.st_shndx).sh_addr;
 
                 cout << "three" << endl;
                 // and define all undefined syms
@@ -135,8 +134,8 @@ void Linker::generateSymbols() {
                 cout << "Update local" << endl;
                 cout << sym << endl;
                 // just update local symbol value
-                string sectionName = eFile->sectionName(sym);
-                sym.st_value += sectionMap[sectionName] + eFile->sectionTable.get(sym.st_shndx).sh_addr;
+                string sectionName = eFile.sectionName(sym);
+                sym.st_value += sectionMap[sectionName] + eFile.sectionTable.get(sym.st_shndx).sh_addr;
                 cout << "ok" << endl;
             }
         }
@@ -151,14 +150,14 @@ void Linker::generateSymbols() {
 
 }
 
-void Linker::handleRelocations(unique_ptr<Elf32File> &eFile) {
-    for (auto &it: eFile->relocationTables) {
+void Linker::handleRelocations(Elf32File &eFile) {
+    for (auto &it: eFile.relocationTables) {
         Elf32_Section sec = it.first;
-        Elf32_Sym &secSym = eFile->sectionSymbol(sec);
-        stringstream &secData = eFile->dataSections[sec];
+        Elf32_Sym &secSym = eFile.sectionSymbol(sec);
+        stringstream &secData = eFile.dataSections[sec];
         cout << secSym << endl;
         for (auto &rel: it.second.relocationEntries) {
-            Elf32_Sym &sym = eFile->symbolTable.symbolDefinitions[ELF32_R_SYM(rel.r_info)];
+            Elf32_Sym &sym = eFile.symbolTable.symbolDefinitions[ELF32_R_SYM(rel.r_info)];
             cout << ELF32_R_SYM(rel.r_info) << " " << ELF32_R_TYPE(rel.r_info) << endl;
             cout << "Relocating: " << sym << endl;
 
