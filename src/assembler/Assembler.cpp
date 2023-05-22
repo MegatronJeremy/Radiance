@@ -156,7 +156,7 @@ void Assembler::endAssembly() {
         eFile.sectionTable.closeLastSection(locationCounter);
     } else if (pass == 2) {
         initCurrentSectionPoolConstants();
-        eFile.writeToOutputFile(outFile);
+        eFile.writeRelToOutputFile(outFile);
     }
 }
 

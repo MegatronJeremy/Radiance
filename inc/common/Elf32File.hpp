@@ -4,6 +4,7 @@
 #include "../../inc/common/SectionTable.hpp"
 #include "Elf32.hpp"
 #include "SymbolTable.hpp"
+#include "ProgramTable.hpp"
 #include <vector>
 #include <string>
 #include <ostream>
@@ -17,7 +18,10 @@ struct Elf32File {
 public:
     void loadFromInputFile(const string &fileName);
 
-    void writeToOutputFile(const string &fileName);
+
+    void writeRelToOutputFile(const string &fileName);
+
+    void writeExecToOutputFile(const string &filename);
 
     string symbolName(const Elf32_Sym &sym) const {
         return stringTable[sym.st_name];
@@ -47,9 +51,16 @@ public:
     SymbolTable symbolTable;
     vector<string> stringTable;
     SectionTable sectionTable;
+    ProgramTable programTable;
 
 private:
-    void loadSection(const Elf32_Shdr &sh, Elf32_Section &section, fstream &file);
+    void loadRelFile(fstream &file);
+
+    void loadExecFile(fstream &file);
+
+    void loadSection(const Elf32_Shdr &sh, Elf32_Section &currDataSection, fstream &file);
+
+    void loadSection(const Elf32_Phdr &ph, Elf32_Section &currDataSection, fstream &file);
 
     void writeStringTable(vector<Elf32_Shdr> &additionalHeaders, fstream &file);
 
@@ -57,5 +68,7 @@ private:
 
     void writeRelocationTables(vector<Elf32_Shdr> &additionalHeaders, fstream &file);
 
-    void writeDataSections(fstream &file);
+    void writeRelDataSections(fstream &file);
+
+    void writeExecDataSections(fstream &file);
 };

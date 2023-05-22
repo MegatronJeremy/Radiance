@@ -6,7 +6,7 @@
 	ld $init_sp, %sp
 	ld $handler, %r1
 	csrwr %r1, %handler
-.section ASSSSSSSSSS
+.section text
 	ld $0x1, %r1
 	st %r1, tim_cfg
 wait:

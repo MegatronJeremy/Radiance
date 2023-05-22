@@ -26,7 +26,7 @@ typedef uint16_t Elf32_Section;
 
 /* The ELF file header.  This appears at the start of every ELF file.  */
 
-#define	ELFMAG		"\177ELF"
+#define    ELFMAG        "\177ELF"
 #define EI_NIDENT (8)
 
 struct Elf32_Ehdr {
@@ -148,9 +148,16 @@ struct Elf32_Shdr {
 #define SHT_RELA      4        /* Relocation entries with addends */
 #define SHT_NOBITS      8        /* Program space with no data (bss) */
 
-/* Legal values for sh_flags (section flags).  */
 
-#define SHF_WRITE         (1 << 0)    /* Writable */
-#define SHF_ALLOC         (1 << 1)    /* Occupies memory during execution */
-#define SHF_EXECINSTR         (1 << 2)    /* Executable */
-#define SHF_INFO_LINK         (1 << 6)    /* `sh_info' contains SHT index */
+/* Program header.  */
+
+struct Elf32_Phdr {
+    Elf32_Off p_offset{};        /* Segment file offset */
+    Elf32_Addr p_paddr{};        /* Segment physical address */
+    Elf32_Word p_memsz{};        /* Segment size in memory */
+
+    friend ostream &operator<<(ostream &os, const Elf32_Phdr &phdr) {
+        os << "p_offset: " << phdr.p_offset << " p_paddr: " << phdr.p_paddr << " p_memsz: " << phdr.p_memsz;
+        return os;
+    }
+};

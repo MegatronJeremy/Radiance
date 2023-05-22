@@ -2,10 +2,12 @@
 
 #include <utility>
 #include <iomanip>
+#include <unordered_set>
+#include <map>
 
 Linker::Linker(const vector<string> &inputFiles, string outFile,
                const vector<pair<string, Elf32_Addr>> &placeDefs, bool hexMode) :
-        outFile(std::move(outFile)),
+        outFileName(std::move(outFile)),
         hexMode(hexMode),
         placeDefs(placeDefs) {
     for (auto &f: inputFiles) {
@@ -32,8 +34,13 @@ void Linker::run() {
     for (auto &file: inputFileObjects) {
         handleRelocations(file);
     }
+
+    cout << "Adding sections to output" << endl;
+    addSectionsToOutput();
+
+    cout << "Writing to executable file" << endl;
     if (hexMode) {
-//        writeHexOutput();
+        outFile.writeExecToOutputFile(outFileName);
     }
 }
 
@@ -79,24 +86,25 @@ void Linker::getSectionMappings() {
 
 
 void Linker::generateSymbols() {
+    unordered_map<string, vector<Elf32_Sym *>> undefinedDefs;
+    unordered_map<string, Elf32_Sym *> globalDefs;
+
     for (Elf32File &eFile: inputFileObjects) {
         for (Elf32_Sym &sym: eFile.symbolTable.symbolDefinitions) {
-            string symName = eFile.symbolName(sym);
-            cout << "Handling: ---------------- " << symName << endl;
-
             if (sym.st_shndx == SHN_ABS || sym.st_name == SHN_UNDEF) {
                 // nothing to do - symbol value is absolute or symbol is for undefined section
                 continue;
             }
 
+            string symName = eFile.symbolName(sym);
+            cout << "Handling: ---------------- " << symName << endl;
+
             if (sym.st_shndx == SHN_UNDEF) {
                 if (globalDefs.find(symName) == globalDefs.end()) {
                     cout << "Adding undefined def" << endl;
                     // undefined weak symbol, add to U
-                    if (undefinedDefs.find(symName) == undefinedDefs.end()) {
-                        undefinedDefs[symName] = {};
-                    }
                     undefinedDefs[symName].emplace_back(&sym);
+
                     cout << "ok" << endl;
                 } else {
                     // add symbol definition
@@ -128,7 +136,8 @@ void Linker::generateSymbols() {
                 }
                 cout << "four" << endl;
                 cout << "Erasing " << symName << endl;
-                undefinedDefs.erase(undefinedDefs.find(symName));
+                undefinedDefs.erase(symName);
+
                 cout << "ok" << endl;
             } else {
                 cout << "Update local" << endl;
@@ -140,6 +149,7 @@ void Linker::generateSymbols() {
             }
         }
     }
+    cout << "im here" << endl;
     if (!undefinedDefs.empty()) {
         string s = "Linker error: symbols without a definition: ";
         for (auto &it: undefinedDefs) {
@@ -148,6 +158,7 @@ void Linker::generateSymbols() {
         throw runtime_error(s);
     }
 
+    cout << "done" << endl;
 }
 
 void Linker::handleRelocations(Elf32File &eFile) {
@@ -163,7 +174,7 @@ void Linker::handleRelocations(Elf32File &eFile) {
 
             Elf32_Addr relVal;
 
-            switch (rel.r_info) {
+            switch (ELF32_R_TYPE(rel.r_info)) {
                 case R_32S:
                 case R_32:
                     // absolute relocation: S + A
@@ -181,6 +192,18 @@ void Linker::handleRelocations(Elf32File &eFile) {
             }
 
             secData.write(reinterpret_cast<char *>(&relVal), sizeof(Elf32_Addr));
+        }
+    }
+}
+
+void Linker::addSectionsToOutput() {
+    outFile.sectionTable.add({}); // und section
+    size_t lastSection = 1;
+    for (auto &file: inputFileObjects) {
+        for (size_t i = 1; i <= file.dataSections.size(); i++) {
+            Elf32_Shdr sh = file.sectionTable.get(i);
+            outFile.sectionTable.add(sh);
+            outFile.dataSections[lastSection++] = std::move(file.dataSections[i]);
         }
     }
 }

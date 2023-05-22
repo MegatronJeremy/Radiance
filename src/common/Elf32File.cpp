@@ -13,6 +13,16 @@ void Elf32File::loadFromInputFile(const string &fileName) {
         throw runtime_error("Readobj error: invalid ELF format!");
     }
 
+    if (elfHeader.e_type == ET_EXEC) {
+        loadExecFile(file);
+    } else if (elfHeader.e_type == ET_REL) {
+        loadRelFile(file);
+    } else {
+        throw runtime_error("Readobj error: unrecognized ELF file type");
+    }
+}
+
+void Elf32File::loadRelFile(fstream &file) {
     // seek to section header offset from file start
     file.seekg(elfHeader.e_shoff, ios::beg);
 
@@ -29,6 +39,42 @@ void Elf32File::loadFromInputFile(const string &fileName) {
     for (auto &sh: sectionTable.sectionDefinitions) {
         loadSection(sh, currDataSection, file);
     }
+}
+
+
+void Elf32File::loadExecFile(fstream &file) {
+    // seek to program header offset from file start
+    file.seekg(elfHeader.e_phoff, ios::beg);
+
+    // load program section headers
+    for (auto i = 0; i < elfHeader.e_phnum; i++) {
+        Elf32_Phdr ph;
+        file.read(reinterpret_cast<char *>(&ph), sizeof(Elf32_Phdr));
+
+        programTable.add(ph);
+    }
+
+    // read sections from section headers
+    Elf32_Section currDataSection = 1;
+    for (auto &ph: programTable.programDefinitions) {
+        loadSection(ph, currDataSection, file);
+    }
+}
+
+void Elf32File::loadSection(const Elf32_Phdr &ph, Elf32_Section &currDataSection, fstream &file) {
+    file.seekg(ph.p_offset);
+    // load data section
+    vector<char> v;
+
+    v.resize(ph.p_memsz);
+
+    file.read(v.data(), ph.p_memsz);
+
+    stringstream s;
+
+    s.write(v.data(), ph.p_memsz);
+
+    dataSections[currDataSection++] = std::move(s);
 }
 
 void Elf32File::loadSection(const Elf32_Shdr &sh, Elf32_Section &currDataSection, fstream &file) {
@@ -104,27 +150,34 @@ void Elf32File::loadSection(const Elf32_Shdr &sh, Elf32_Section &currDataSection
 
 ostream &operator<<(ostream &os, Elf32File &file) {
     os << "Header: " << endl;
-    os << file.elfHeader << endl;
+    os << file.elfHeader << endl << endl;
 
-    os << "Relocation tables: " << endl;
-    for (auto &it: file.relocationTables) {
-        os << file.sectionName(it.first) << ": " << endl;
-        os << it.second << endl;
+    if (file.elfHeader.e_type == ET_REL) {
+        os << file.sectionTable << endl;
+
+        os << file.symbolTable << endl;
+
+        os << "String table: " << endl;
+        for (Elf32_Word i = 0; i < file.stringTable.size(); i++) {
+            os << i << ": " << file.stringTable[i] << endl;
+        }
+        cout << endl;
+
+        os << "Relocation tables: " << endl;
+        for (auto &it: file.relocationTables) {
+            os << file.sectionName(it.first) << ": " << endl;
+            os << it.second << endl;
+        }
     }
-
-    os << file.symbolTable << endl;
-
-    os << "String table: " << endl;
-    for (Elf32_Word i = 0; i < file.stringTable.size(); i++) {
-        os << i << ": " << file.stringTable[i] << endl;
-    }
-    cout << endl;
-
-    os << file.sectionTable << endl;
 
     for (Elf32_Word i = 1; i <= file.dataSections.size(); i++) {
-        os << "Contents of section: " << file.sectionName(i) << endl;
-        Elf32_Word startLoc = file.sectionTable.get(i).sh_addr;
+        Elf32_Word startLoc = 0;
+        if (file.elfHeader.e_type == ET_REL) {
+            os << "Contents of section: " << file.sectionName(i) << endl;
+            startLoc = file.sectionTable.get(i).sh_addr;
+        } else if (file.elfHeader.e_type == ET_EXEC) {
+            startLoc = file.programTable.get(i).p_paddr;
+        }
         stringstream &data = file.dataSections[i];
 
         int c;
@@ -210,7 +263,7 @@ void Elf32File::writeRelocationTables(vector<Elf32_Shdr> &additionalHeaders, fst
     }
 }
 
-void Elf32File::writeDataSections(fstream &file) {
+void Elf32File::writeRelDataSections(fstream &file) {
     for (size_t i = 1; i <= dataSections.size(); i++) {
         stringstream &s = dataSections[i];
         Elf32_Shdr &sh = sectionTable.get(i);
@@ -219,8 +272,28 @@ void Elf32File::writeDataSections(fstream &file) {
     }
 }
 
-void Elf32File::writeToOutputFile(const string &fileName) {
+void Elf32File::writeExecDataSections(fstream &file) {
+    for (size_t i = 1; i <= dataSections.size(); i++) {
+        stringstream &s = dataSections[i];
+
+        Elf32_Shdr &sh = sectionTable.get(i);
+        cout << sh << endl;
+
+        Elf32_Phdr ph;
+        ph.p_memsz = sh.sh_size;
+        ph.p_offset = file.tellp();
+        ph.p_paddr = sh.sh_addr;
+
+        programTable.add(ph);
+
+        file << s.rdbuf();
+    }
+}
+
+void Elf32File::writeRelToOutputFile(const string &fileName) {
     fstream file{fileName, ios::out | ios::binary};
+
+    elfHeader.e_type = ET_REL;
 
     // first the header
     file.write(reinterpret_cast<char *>(&elfHeader), sizeof(Elf32_Ehdr));
@@ -231,7 +304,7 @@ void Elf32File::writeToOutputFile(const string &fileName) {
     vector<Elf32_Shdr> additionalHeaders;
 
     // write these first, before section header start
-    writeDataSections(file);
+    writeRelDataSections(file);
 
     writeRelocationTables(additionalHeaders, file);
 
@@ -258,3 +331,32 @@ void Elf32File::writeToOutputFile(const string &fileName) {
     file.seekp(SEEK_SET);
     file.write(reinterpret_cast<char *>(&elfHeader), sizeof(Elf32_Ehdr));
 }
+
+void Elf32File::writeExecToOutputFile(const string &fileName) {
+    fstream file{fileName, ios::out | ios::binary};
+
+    elfHeader.e_type = ET_EXEC;
+    elfHeader.e_phnum = dataSections.size();
+
+    // first the header
+    file.write(reinterpret_cast<char *>(&elfHeader), sizeof(Elf32_Ehdr));
+
+    // write the program sections
+    writeExecDataSections(file);
+
+    // offset to program header
+    elfHeader.e_phoff = file.tellp();
+
+    cout << elfHeader << endl;
+
+    // write program section headers
+    for (auto &ph: programTable.programDefinitions) {
+        cout << ph << endl;
+        file.write(reinterpret_cast<char *>(&ph), sizeof(Elf32_Phdr));
+    }
+
+    file.seekg(SEEK_SET);
+    file.write(reinterpret_cast<char *>(&elfHeader), sizeof(Elf32_Ehdr));
+}
+
+

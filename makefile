@@ -59,6 +59,8 @@ readobj: $(RO_BIN)
 
 linker: $(LD_BIN)
 
+emulator:
+
 $(AS_BIN):  $(MSC_OBJ) $(COM_OBJ) $(AS_OBJ)
 	$(CXX) -o $@ $^
 
@@ -86,14 +88,10 @@ $(BUILD)/src/common/%.o: $(COM_CODE)/%.cpp
 $(MSC_CXX):
 	$(MAKE) -C misc all
 
-linker:
-
-emulator:
-
 clean:
 	$(MAKE) -C misc clean
 	rm -rf out
 
--include $(AS_DEP) $(COM_DEP) $(MSC_DEP)
+-include $(AS_DEP) $(RO_DEP) $(LD_DEP) $(COM_DEP) $(MSC_DEP)
 
 .PHONY: directories all assembler linker emulator clean

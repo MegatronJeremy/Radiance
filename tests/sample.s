@@ -14,6 +14,7 @@ handler:
     push %r2
     csrrd %cause, %r1
     int
+.section text
     .ascii "Q PREDICTED THIS"
     ld $2, %r2
     beq %r1, %r2, my_isr_timer

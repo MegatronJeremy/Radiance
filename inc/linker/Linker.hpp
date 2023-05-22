@@ -25,11 +25,15 @@ private:
 
     void generateSymbols();
 
+    void addSectionsToOutput();
+
     static void handleRelocations(Elf32File &eFile);
 
     vector<Elf32File> inputFileObjects;
-    string outFile;
+    string outFileName;
     bool hexMode;
+
+    Elf32File outFile;
 
     vector<pair<string, Elf32_Addr>> placeDefs;
 
@@ -39,8 +43,6 @@ private:
 
     unordered_map<string, Elf32_Addr> sectionMap;
 
-    unordered_map<string, vector<Elf32_Sym *>> undefinedDefs;
-    unordered_map<string, Elf32_Sym *> globalDefs;
 
     SymbolTable symbolTable;
 
