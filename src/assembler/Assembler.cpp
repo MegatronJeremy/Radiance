@@ -20,7 +20,6 @@ Assembler::Assembler(string outFile) : outFile(std::move(outFile)) {
     eFile.sectionTable.insertSectionDefinition(nsh);
 
     literalTable.emplace_back();
-//      TODO  eFile.relocationTables[currentSection] = RelocationTable{};
 
     // relocatable file
     elfHeader.e_type = ET_REL;
@@ -111,11 +110,6 @@ void Assembler::registerSection(const string &section) {
         initCurrentSectionPoolConstants();
         currentSection++; // next section
         locationCounter = 0; // reset location counter
-
-//        Elf32_Shdr &sh = eFile.sectionTable.get(currentSection);
-
-        // TODO
-//        sh.sh_offset = eFile.outputFile.tellp(); // set offset to current location
     }
 }
 
@@ -124,7 +118,6 @@ void Assembler::insertSection(const string &section) {
     literalTable.emplace_back();
 
     currentSection++;
-//   TODO eFile.relocationTables[currentSection] = RelocationTable{};
 
     // close last section
     eFile.sectionTable.closeLastSection(locationCounter);
@@ -207,7 +200,7 @@ void Assembler::initAscii(string ascii) {
     if (pass == 1) {
         return; // do nothing
     } else {
-        eFile.dataSections[currentSection] << ascii;
+        eFile.dataSections[currentSection].write(ascii.c_str(), static_cast<streamsize>(ascii.size()));
     }
 }
 

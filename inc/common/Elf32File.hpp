@@ -49,7 +49,7 @@ public:
     SectionTable sectionTable;
 
 private:
-    void loadSection(const Elf32_Shdr &sh, fstream &file);
+    void loadSection(const Elf32_Shdr &sh, Elf32_Section &section, fstream &file);
 
     void writeStringTable(vector<Elf32_Shdr> &additionalHeaders, fstream &file);
 

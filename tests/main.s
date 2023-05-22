@@ -6,6 +6,7 @@
 	ld $init_sp, %sp
 	ld $handler, %r1
 	csrwr %r1, %handler
+.section ASSSSSSSSSS
 	ld $0x1, %r1
 	st %r1, tim_cfg
 wait:
@@ -17,4 +18,7 @@ wait:
 .section my_data
 my_counter:
 	.word 0, 0xfff
+	.word 0xabcd
+	.word 0xffffffff
+	.word 0xabcdefab
 .end

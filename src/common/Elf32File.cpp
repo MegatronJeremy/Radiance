@@ -25,16 +25,14 @@ void Elf32File::loadFromInputFile(const string &fileName) {
     }
 
     // read sections from section headers
+    Elf32_Section currDataSection = 1;
     for (auto &sh: sectionTable.sectionDefinitions) {
-        loadSection(sh, file);
+        loadSection(sh, currDataSection, file);
     }
 }
 
-void Elf32File::loadSection(const Elf32_Shdr &sh, fstream &file) {
+void Elf32File::loadSection(const Elf32_Shdr &sh, Elf32_Section &currDataSection, fstream &file) {
     file.seekg(sh.sh_offset);
-
-
-    Elf32_Section currDataSection = 0;
 
     switch (sh.sh_type) {
         case SHT_PROGBITS:
@@ -120,12 +118,13 @@ ostream &operator<<(ostream &os, Elf32File &file) {
     for (Elf32_Word i = 0; i < file.stringTable.size(); i++) {
         os << i << ": " << file.stringTable[i] << endl;
     }
+    cout << endl;
 
     os << file.sectionTable << endl;
 
-    for (Elf32_Word i = 0; i < file.dataSections.size(); i++) {
-        os << "Contents of section: " << file.sectionName(i + 1) << endl;
-        Elf32_Word startLoc = file.sectionTable.get(i + 1).sh_addr;
+    for (Elf32_Word i = 1; i <= file.dataSections.size(); i++) {
+        os << "Contents of section: " << file.sectionName(i) << endl;
+        Elf32_Word startLoc = file.sectionTable.get(i).sh_addr;
         stringstream &data = file.dataSections[i];
 
         int c;
@@ -134,14 +133,18 @@ ostream &operator<<(ostream &os, Elf32File &file) {
             if (j % 8 == 0) {
                 os << setw(4) << setfill('0') << hex << startLoc + j << ": ";
             }
+            j++;
             os << setw(2) << setfill('0') << hex << c;
             if (j % 8 == 0) {
-                os << " ";
-            } else {
                 os << endl;
+            } else {
+                os << " ";
             }
-            j++;
         }
+        if (j % 8 != 0) {
+            os << endl;
+        }
+        os << endl;
     }
 
     return os;
@@ -208,9 +211,11 @@ void Elf32File::writeRelocationTables(vector<Elf32_Shdr> &additionalHeaders, fst
 }
 
 void Elf32File::writeDataSections(fstream &file) {
-    for (auto &it: dataSections) {
-        file << it.second.rdbuf();
-        sectionTable.get(it.first).sh_offset = file.tellp(); // offset in file
+    for (size_t i = 1; i <= dataSections.size(); i++) {
+        stringstream &s = dataSections[i];
+        Elf32_Shdr sh = sectionTable.get(i);
+        sh.sh_offset = file.tellp(); // section 0 is reserved
+        file.write(reinterpret_cast<char *>(s.rdbuf()), sh.sh_size);
     }
 }
 
