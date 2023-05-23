@@ -12,7 +12,7 @@ using namespace std;
 
 class Linker {
 public:
-    Linker(const vector<string> &inputFiles, string outFile, const vector<pair<string, Elf32_Addr>> &placeDefs,
+    Linker(const vector<string> &inputFiles, string outFile, const unordered_map<string, Elf32_Addr> &placeDefs,
            bool hexMode);
 
     void run();
@@ -35,14 +35,13 @@ private:
 
     Elf32File outFile;
 
-    vector<pair<string, Elf32_Addr>> placeDefs;
+    unordered_map<string, Elf32_Addr> placeDefs;
 
     vector<Elf32_Shdr> programSections;
 
     unordered_map<string, Elf32_Word> sectionSizes;
 
     unordered_map<string, Elf32_Addr> sectionMap;
-
 
     SymbolTable symbolTable;
 

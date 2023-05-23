@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
     };
 
     string out_file = "a.hex";
-    vector<pair<string, Elf32_Word >> place_defs;
+    unordered_map<string, Elf32_Word> place_defs;
 
 
     bool hex = false, rela = false;
@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
                 char s[25];
                 Elf32_Word p;
                 sscanf(optarg, "%s@%x", s, &p);
-                place_defs.emplace_back(s, p);
+                place_defs[s] = p;
                 break;
             case 'h':
                 if (rela) {

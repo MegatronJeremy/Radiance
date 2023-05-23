@@ -4,9 +4,10 @@
 #include <iomanip>
 #include <unordered_set>
 #include <map>
+#include <algorithm>
 
 Linker::Linker(const vector<string> &inputFiles, string outFile,
-               const vector<pair<string, Elf32_Addr>> &placeDefs, bool hexMode) :
+               const unordered_map<string, Elf32_Addr> &placeDefs, bool hexMode) :
         outFileName(std::move(outFile)),
         hexMode(hexMode),
         placeDefs(placeDefs) {
@@ -64,22 +65,43 @@ void Linker::getSectionSizes(Elf32File &eFile) {
 }
 
 void Linker::getSectionMappings() {
-    Elf32_Word location = 0;
+    Elf32_Addr highestEnd = 0;
+
+    vector<vector<Elf32_Addr>> intervals;
+
+    // first all place definitions
     for (Elf32File &eFile: inputFileObjects) {
+
         for (Elf32_Shdr &sh: eFile.sectionTable.sectionDefinitions) {
-            if (sh.sh_type != SHT_PROGBITS && sh.sh_type != SHT_NOBITS) {
-                // only keep program sections
-                continue;
+            string sectionName = eFile.sectionName(sh);
+            if ((sh.sh_type != SHT_PROGBITS && sh.sh_type != SHT_NOBITS)) {
+                continue; // only for program sections
             }
 
-            string sectionName = eFile.sectionName(sh);
-            if (sectionMap.find(sectionName) != sectionMap.end()) { // section was already mapped, add ofsset
-                sh.sh_addr += sectionMap[sectionName];
-            } else {
-                sh.sh_addr += location; // sh_addr starts from zero
-                sectionMap[sectionName] = sh.sh_addr;
-                location += sectionSizes[sectionName];
+            if (placeDefs.find(sectionName) == placeDefs.end()) { // no place definition
+                placeDefs[sectionName] = highestEnd;
             }
+            if (sh.sh_addr == 0) { // start of section - add interval
+                intervals.emplace_back(placeDefs[sectionName], placeDefs[sectionName] + sectionSizes[sectionName]);
+            }
+
+            sh.sh_addr += placeDefs[sectionName]; // sh_addr starts from offset inside of new section
+
+            highestEnd = max(highestEnd, placeDefs[sectionName] + sectionSizes[sectionName]);
+        }
+    }
+
+    // check for overlapping intervals
+    size_t n = intervals.size();
+    if (n == 0) { // no sections
+        return;
+    }
+
+    sort(intervals.begin(), intervals.end()); // sort by section start
+    for (size_t i = 1; i < n; i++) {
+        if (intervals[i][0] < intervals[i - 1][1]) { // start of next section comes before end of previous section
+            // overlapping
+            throw runtime_error("Linker error: overlapping data sections");
         }
     }
 }
