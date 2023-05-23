@@ -1,6 +1,8 @@
 BUILD=./out
 MKDIR_P=mkdir -p
 
+TEST_DIR=./tests
+
 AS_BUILD=$(BUILD)/src/assembler
 AS_INC=./inc/assembler ./misc
 AS_BIN=/usr/bin/assembler
@@ -91,6 +93,8 @@ $(MSC_CXX):
 clean:
 	$(MAKE) -C misc clean
 	rm -rf out
+	rm $(TEST_DIR)/*.o
+
 
 -include $(AS_DEP) $(RO_DEP) $(LD_DEP) $(COM_DEP) $(MSC_DEP)
 
