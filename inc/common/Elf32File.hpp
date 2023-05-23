@@ -16,10 +16,9 @@ using namespace std;
 
 struct Elf32File {
 public:
-    Elf32File();
+    void addUndefinedSection();
 
     void loadFromInputFile(const string &fileName);
-
 
     void writeRelToOutputFile(const string &fileName);
 

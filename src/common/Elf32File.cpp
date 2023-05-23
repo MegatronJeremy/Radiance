@@ -3,8 +3,7 @@
 #include <cstring>
 #include <iomanip>
 
-Elf32File::Elf32File() {
-    // setting up undefined section
+void Elf32File::addUndefinedSection() {
     Elf32_Sym nsd{};
     nsd.st_shndx = SHN_UNDEF;
     nsd.st_info = ELF32_ST_INFO(STB_LOCAL, STT_SECTION);
@@ -326,11 +325,10 @@ void Elf32File::writeRelToOutputFile(const string &fileName) {
     elfHeader.e_shoff = file.tellp(); // section header offset
 
     // all written section headers
-    elfHeader.e_shnum = sectionTable.sectionDefinitions.size() - 1 + additionalHeaders.size();
+    elfHeader.e_shnum = sectionTable.sectionDefinitions.size() + additionalHeaders.size();
 
     // write main section headers (except undefined sectiond!!!) TODO - check this everywhere else
-    for (size_t i = 1; i < sectionTable.sectionDefinitions.size(); i++) {
-        Elf32_Shdr &sh = sectionTable.sectionDefinitions[i];
+    for (Elf32_Shdr &sh: sectionTable.sectionDefinitions) {
         file.write(reinterpret_cast<char *>(&sh), sizeof(sh));
     }
 

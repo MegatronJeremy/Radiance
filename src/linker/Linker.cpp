@@ -6,9 +6,9 @@
 #include <map>
 #include <algorithm>
 
-Linker::Linker(const vector<string> &inputFiles, string outFile,
+Linker::Linker(const vector<string> &inputFiles, string outFileName,
                const unordered_map<string, Elf32_Addr> &placeDefs, bool hexMode) :
-        outFileName(std::move(outFile)),
+        outFileName(std::move(outFileName)),
         execMode(hexMode),
         placeDefs(placeDefs) {
     for (auto &f: inputFiles) {
@@ -20,6 +20,9 @@ Linker::Linker(const vector<string> &inputFiles, string outFile,
         }
         inputFileObjects.emplace_back(std::move(e32));
     }
+
+    // setting up out file
+    outFile.addUndefinedSection();
 
     if (!hexMode) {
         // ignore place defs
@@ -54,6 +57,7 @@ void Linker::run() {
     addSectionsToOutput();
 
     cout << "Writing to executable file" << endl;
+    cout << outFile << endl;
     if (execMode) {
         outFile.writeExecToOutputFile(outFileName);
     } else {
@@ -70,10 +74,6 @@ void Linker::getSectionSizes(Elf32File &eFile) {
 
         string sectionName = eFile.sectionName(sh);
         cout << "Getting size for: " << sectionName << endl;
-        if (sectionSizes.find(sectionName) == sectionSizes.end()) {
-            sectionSizes[sectionName] = 0;
-        }
-        // offset from start of section is end of last section (from zero)
         sh.sh_addr = sectionSizes[sectionName];
         // update new end of section
         sectionSizes[sectionName] += sh.sh_size;
@@ -90,7 +90,6 @@ void Linker::getSectionMappings() {
 
     // first all place definitions
     for (Elf32File &eFile: inputFileObjects) {
-
         for (Elf32_Shdr &sh: eFile.sectionTable.sectionDefinitions) {
             bool newSection = false;
             string sectionName = eFile.sectionName(sh);
@@ -104,8 +103,6 @@ void Linker::getSectionMappings() {
                     cout << highestEnd << endl;
                     placeDefs[sectionName] = highestEnd;
                     highestEnd += sectionSizes[sectionName];
-                } else { // start from zero if generating relocatable file
-                    placeDefs[sectionName] = 0;
                 }
             }
             if (sh.sh_addr == 0) { // start of new section
