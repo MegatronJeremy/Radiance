@@ -3,6 +3,18 @@
 #include <cstring>
 #include <iomanip>
 
+Elf32File::Elf32File() {
+    // setting up undefined section
+    Elf32_Sym nsd{};
+    nsd.st_shndx = SHN_UNDEF;
+    nsd.st_info = ELF32_ST_INFO(STB_LOCAL, STT_SECTION);
+
+    symbolTable.insertSymbolDefinition(nsd, "UND");
+    Elf32_Shdr nsh{};
+
+    sectionTable.add(nsh);
+}
+
 void Elf32File::loadFromInputFile(const string &fileName) {
     // load file and everything that goes with it
     fstream file{fileName, ios::in | ios::out | ios::binary};
@@ -40,7 +52,6 @@ void Elf32File::loadRelFile(fstream &file) {
         loadSection(sh, currDataSection, file);
     }
 }
-
 
 void Elf32File::loadExecFile(fstream &file) {
     // seek to program header offset from file start
@@ -315,10 +326,11 @@ void Elf32File::writeRelToOutputFile(const string &fileName) {
     elfHeader.e_shoff = file.tellp(); // section header offset
 
     // all written section headers
-    elfHeader.e_shnum = sectionTable.sectionDefinitions.size() + additionalHeaders.size();
+    elfHeader.e_shnum = sectionTable.sectionDefinitions.size() - 1 + additionalHeaders.size();
 
-    // write main section headers
-    for (auto &sh: sectionTable.sectionDefinitions) {
+    // write main section headers (except undefined sectiond!!!) TODO - check this everywhere else
+    for (size_t i = 1; i < sectionTable.sectionDefinitions.size(); i++) {
+        Elf32_Shdr &sh = sectionTable.sectionDefinitions[i];
         file.write(reinterpret_cast<char *>(&sh), sizeof(sh));
     }
 

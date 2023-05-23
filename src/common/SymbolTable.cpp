@@ -14,6 +14,10 @@ Elf32_Sym *SymbolTable::insertSymbolDefinition(Elf32_Sym &sd, const string &name
     return &symbolDefinitions.back();
 }
 
+Elf32_Word SymbolTable::getSymbolIndex(const string &s) {
+    return symbolMappings[s];
+}
+
 Elf32_Sym *SymbolTable::get(const string &s) {
     if (symbolMappings.find(s) == symbolMappings.end())
         return nullptr;

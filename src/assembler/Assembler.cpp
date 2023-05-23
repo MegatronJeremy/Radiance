@@ -9,16 +9,6 @@
 Elf32_Addr Assembler::locationCounter = 0;
 
 Assembler::Assembler(string outFile) : outFile(std::move(outFile)) {
-    // setting up undefined section
-    Elf32_Sym nsd{};
-    nsd.st_shndx = SHN_UNDEF;
-    nsd.st_info = ELF32_ST_INFO(STB_LOCAL, STT_SECTION);
-
-    eFile.symbolTable.insertSymbolDefinition(nsd, "UND");
-    Elf32_Shdr nsh{};
-
-    eFile.sectionTable.insertSectionDefinition(nsh);
-
     literalTable.emplace_back();
 
     // relocatable file
@@ -126,7 +116,7 @@ void Assembler::insertSection(const string &section) {
     locationCounter = 0;
 
     // insert as section
-    Elf32_Shdr &sd = eFile.sectionTable.insertSectionDefinition();
+    Elf32_Shdr &sd = eFile.sectionTable.add();
     sd.sh_type = SHT_PROGBITS;
 
     // insert section as symbol

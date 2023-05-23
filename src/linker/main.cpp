@@ -15,12 +15,11 @@ int main(int argc, char **argv) {
             {"place",       required_argument, nullptr, 'p'},
             {"hex",         no_argument,       nullptr, 'h'},
             {"relocatable", no_argument,       nullptr, 'r'},
-            {nullptr, 0,                       nullptr, 0}
+            {nullptr,       0,                 nullptr, 0}
     };
 
     string out_file = "a.hex";
     unordered_map<string, Elf32_Word> place_defs;
-
 
     bool hex = false, rela = false;
     int c;
@@ -32,7 +31,11 @@ int main(int argc, char **argv) {
             case 'p':
                 char s[25];
                 Elf32_Word p;
-                sscanf(optarg, "%s@%x", s, &p);
+                char at;
+                sscanf(optarg, "%[^@\n]%c%x", s, &at, &p);
+                if (at != '@') {
+                    cout << "Linker error: invalid format, place format is place=section@address";
+                }
                 place_defs[s] = p;
                 break;
             case 'h':
@@ -65,7 +68,6 @@ int main(int argc, char **argv) {
     while (optind < argc) {
         string file = argv[optind];
         input_files.emplace_back(file);
-        cout << file << endl;
         optind++;
     }
 

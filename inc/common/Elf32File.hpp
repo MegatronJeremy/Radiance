@@ -16,6 +16,8 @@ using namespace std;
 
 struct Elf32File {
 public:
+    Elf32File();
+
     void loadFromInputFile(const string &fileName);
 
 

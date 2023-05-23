@@ -5,8 +5,21 @@
 using namespace std;
 
 
-Elf32_Shdr &SectionTable::insertSectionDefinition(Elf32_Shdr sd) {
-    sectionDefinitions.emplace_back(sd);
+Elf32_Shdr *SectionTable::get(const string &s) {
+    if (sectionIndices.find(s) == sectionIndices.end()) {
+        return nullptr;
+    }
+    return &sectionDefinitions[sectionIndices[s]];
+}
+
+Elf32_Shdr &SectionTable::add(const Elf32_Shdr &shdr) {
+    sectionDefinitions.emplace_back(shdr);
+    return sectionDefinitions.back();
+}
+
+Elf32_Shdr &SectionTable::add(const Elf32_Shdr &shdr, const string &s) {
+    sectionIndices[s] = sectionDefinitions.size(); // zero indexed
+    add(shdr);
     return sectionDefinitions.back();
 }
 
@@ -23,8 +36,8 @@ const Elf32_Shdr &SectionTable::get(Elf32_Section s) const {
     return sectionDefinitions[s];
 }
 
-void SectionTable::add(const Elf32_Shdr &shdr) {
-    sectionDefinitions.push_back(shdr);
+Elf32_Section SectionTable::getSectionIndex(const string &s) {
+    return sectionIndices[s];
 }
 
 ostream &operator<<(ostream &os, const SectionTable &st) {

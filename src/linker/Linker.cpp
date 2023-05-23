@@ -9,7 +9,7 @@
 Linker::Linker(const vector<string> &inputFiles, string outFile,
                const unordered_map<string, Elf32_Addr> &placeDefs, bool hexMode) :
         outFileName(std::move(outFile)),
-        hexMode(hexMode),
+        execMode(hexMode),
         placeDefs(placeDefs) {
     for (auto &f: inputFiles) {
         Elf32File e32;
@@ -20,6 +20,12 @@ Linker::Linker(const vector<string> &inputFiles, string outFile,
         }
         inputFileObjects.emplace_back(std::move(e32));
     }
+
+    if (!hexMode) {
+        // ignore place defs
+        this->placeDefs.clear();
+    }
+
 }
 
 void Linker::run() {
@@ -29,25 +35,35 @@ void Linker::run() {
     }
     cout << "Getting section mappings" << endl;
     getSectionMappings();
-    cout << "Getting symbols" << endl;
+    cout << "Defining symbols" << endl;
+    defineAllSymbols();
+
+    cout << "Generating symbols " << endl;
     generateSymbols();
+
     cout << "Getting relocations" << endl;
     for (auto &file: inputFileObjects) {
-        handleRelocations(file);
+        if (execMode) {
+            handleRelocations(file);
+        } else {
+            generateRelocations(file);
+        }
     }
 
     cout << "Adding sections to output" << endl;
     addSectionsToOutput();
 
     cout << "Writing to executable file" << endl;
-    if (hexMode) {
+    if (execMode) {
         outFile.writeExecToOutputFile(outFileName);
+    } else {
+        outFile.writeRelToOutputFile(outFileName);
     }
 }
 
 void Linker::getSectionSizes(Elf32File &eFile) {
     for (Elf32_Shdr &sh: eFile.sectionTable.sectionDefinitions) {
-        if (hexMode && sh.sh_type != SHT_PROGBITS && sh.sh_type != SHT_NOBITS) {
+        if (execMode && sh.sh_type != SHT_PROGBITS && sh.sh_type != SHT_NOBITS) {
             // only keep program sections
             continue;
         }
@@ -66,6 +82,9 @@ void Linker::getSectionSizes(Elf32File &eFile) {
 
 void Linker::getSectionMappings() {
     Elf32_Addr highestEnd = 0;
+    for (auto &it: placeDefs) {
+        highestEnd = max(highestEnd, it.second + sectionSizes[it.first]);
+    }
 
     vector<vector<Elf32_Addr>> intervals;
 
@@ -73,21 +92,36 @@ void Linker::getSectionMappings() {
     for (Elf32File &eFile: inputFileObjects) {
 
         for (Elf32_Shdr &sh: eFile.sectionTable.sectionDefinitions) {
+            bool newSection = false;
             string sectionName = eFile.sectionName(sh);
             if ((sh.sh_type != SHT_PROGBITS && sh.sh_type != SHT_NOBITS)) {
                 continue; // only for program sections
             }
 
             if (placeDefs.find(sectionName) == placeDefs.end()) { // no place definition
-                placeDefs[sectionName] = highestEnd;
+                cout << "No place defs for symbol " << sectionName << endl;
+                if (execMode) {
+                    cout << highestEnd << endl;
+                    placeDefs[sectionName] = highestEnd;
+                    highestEnd += sectionSizes[sectionName];
+                } else { // start from zero if generating relocatable file
+                    placeDefs[sectionName] = 0;
+                }
             }
-            if (sh.sh_addr == 0) { // start of section - add interval
-                intervals.emplace_back(placeDefs[sectionName], placeDefs[sectionName] + sectionSizes[sectionName]);
+            if (sh.sh_addr == 0) { // start of new section
+                newSection = true;
+                if (execMode) { // don't check intervals for exec mode
+                    intervals.push_back({placeDefs[sectionName], placeDefs[sectionName] + sectionSizes[sectionName]});
+                }
             }
 
             sh.sh_addr += placeDefs[sectionName]; // sh_addr starts from offset inside of new section
 
-            highestEnd = max(highestEnd, placeDefs[sectionName] + sectionSizes[sectionName]);
+            if (newSection) { // add to section table with new section index
+                outFile.sectionTable.add(sh, sectionName);
+            }
+
+            cout << "Placing symbol " + sectionName + " at address " << sh.sh_addr << endl;
         }
     }
 
@@ -107,7 +141,7 @@ void Linker::getSectionMappings() {
 }
 
 
-void Linker::generateSymbols() {
+void Linker::defineAllSymbols() {
     unordered_map<string, vector<Elf32_Sym *>> undefinedDefs;
     unordered_map<string, Elf32_Sym *> globalDefs;
 
@@ -172,7 +206,7 @@ void Linker::generateSymbols() {
         }
     }
     cout << "im here" << endl;
-    if (!undefinedDefs.empty()) {
+    if (execMode && !undefinedDefs.empty()) {
         string s = "Linker error: symbols without a definition: ";
         for (auto &it: undefinedDefs) {
             s += it.first + " ";
@@ -181,6 +215,49 @@ void Linker::generateSymbols() {
     }
 
     cout << "done" << endl;
+}
+
+void Linker::generateSymbols() {
+    for (Elf32File &eFile: inputFileObjects) {
+        for (Elf32_Sym &sym: eFile.symbolTable.symbolDefinitions) {
+            string symName = eFile.symbolName(sym);
+
+            if (outFile.symbolTable.get(symName) != nullptr) {
+                continue; // symbol already generated
+            }
+
+            Elf32_Sym nsym = sym;
+
+            // only if section exists
+            if (nsym.st_shndx != SHN_ABS && nsym.st_shndx != SHN_UNDEF) {
+                string sectionName = eFile.sectionName(sym);
+                nsym.st_shndx = outFile.sectionTable.getSectionIndex(sectionName);
+            }
+
+            outFile.symbolTable.insertSymbolDefinition(nsym, symName);
+
+            if (ELF32_ST_TYPE(nsym.st_info) == STT_SECTION) {
+                // section symbol, add name index to section table
+                outFile.sectionTable.get(symName)->sh_name = outFile.symbolTable.getSymbolIndex(symName);
+            }
+        }
+    }
+}
+
+void Linker::generateRelocations(Elf32File &eFile) {
+    for (auto &it: eFile.relocationTables) {
+        for (Elf32_Rela &rel: it.second.relocationEntries) {
+            Elf32_Sym &sym = eFile.symbolTable.symbolDefinitions[ELF32_R_SYM(rel.r_info)];
+            string symName = eFile.sectionName(sym);
+            Elf32_Shdr &sh = eFile.sectionTable.get(sym.st_shndx);
+
+            // symbol index in out file
+            Elf32_Word outSymNdx = outFile.symbolTable.getSymbolIndex(symName);
+
+            rel.r_offset += sh.sh_addr; // add new section start offset (from zero)
+            rel.r_info = ELF32_R_INFO(outSymNdx, ELF32_R_TYPE(rel.r_info));
+        }
+    }
 }
 
 void Linker::handleRelocations(Elf32File &eFile) {
@@ -219,13 +296,19 @@ void Linker::handleRelocations(Elf32File &eFile) {
 }
 
 void Linker::addSectionsToOutput() {
-    outFile.sectionTable.add({}); // und section
-    size_t lastSection = 1;
     for (auto &file: inputFileObjects) {
         for (size_t i = 1; i <= file.dataSections.size(); i++) {
-            Elf32_Shdr sh = file.sectionTable.get(i);
-            outFile.sectionTable.add(sh);
-            outFile.dataSections[lastSection++] = std::move(file.dataSections[i]);
+            string sectionName = file.sectionName(i);
+
+            Elf32_Section outSection = file.sectionTable.getSectionIndex(sectionName);
+
+            if (outFile.dataSections.find(outSection) == outFile.dataSections.end()) {
+                // new section
+                outFile.dataSections[outSection] = std::move(file.dataSections[i]);
+            } else {
+                // append to last section
+                outFile.dataSections[outSection] << file.dataSections[i].rdbuf();
+            }
         }
     }
 }

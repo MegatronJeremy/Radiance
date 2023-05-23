@@ -23,15 +23,20 @@ private:
 
     void getSectionMappings();
 
+    void defineAllSymbols();
+
     void generateSymbols();
 
     void addSectionsToOutput();
 
     static void handleRelocations(Elf32File &eFile);
 
+    void generateRelocations(Elf32File &eFile);
+
     vector<Elf32File> inputFileObjects;
     string outFileName;
-    bool hexMode;
+
+    bool execMode;
 
     Elf32File outFile;
 
@@ -44,5 +49,4 @@ private:
     unordered_map<string, Elf32_Addr> sectionMap;
 
     SymbolTable symbolTable;
-
 };
