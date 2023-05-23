@@ -25,11 +25,11 @@ public:
     void writeExecToOutputFile(const string &filename);
 
     string symbolName(const Elf32_Sym &sym) const {
-        return stringTable[sym.st_name];
+        return symbolTable.symbolNames[sym.st_name];
     }
 
     string sectionName(const Elf32_Shdr &shdr) const {
-        return stringTable[shdr.sh_name];
+        return symbolTable.symbolNames[shdr.sh_name];
     }
 
     string sectionName(const Elf32_Sym &sym) const {
@@ -50,7 +50,6 @@ public:
     unordered_map<Elf32_Section, stringstream> dataSections;
     unordered_map<Elf32_Section, RelocationTable> relocationTables;
     SymbolTable symbolTable;
-    vector<string> stringTable;
     SectionTable sectionTable;
     ProgramTable programTable;
 

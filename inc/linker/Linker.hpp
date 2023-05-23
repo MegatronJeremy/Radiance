@@ -13,7 +13,7 @@ using namespace std;
 class Linker {
 public:
     Linker(const vector<string> &inputFiles, string outFile, const unordered_map<string, Elf32_Addr> &placeDefs,
-           bool hexMode);
+           bool execMode);
 
     void run();
 

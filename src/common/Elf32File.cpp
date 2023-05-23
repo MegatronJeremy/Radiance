@@ -11,7 +11,7 @@ void Elf32File::addUndefinedSection() {
     symbolTable.insertSymbolDefinition(nsd, "UND");
     Elf32_Shdr nsh{};
 
-    sectionTable.add(nsh);
+    sectionTable.add(nsh, "UND");
 }
 
 void Elf32File::loadFromInputFile(const string &fileName) {
@@ -115,7 +115,7 @@ void Elf32File::loadSection(const Elf32_Shdr &sh, Elf32_Section &currDataSection
             while (sz > 0) {
                 string s;
                 std::getline(file, s, '\0');
-                stringTable.emplace_back(s);
+                symbolTable.symbolNames.push_back(s);
                 symbolTable.symbolMappings[s] = currSym++;
 
                 sz -= s.size() + 1; // +1 for \0
@@ -168,8 +168,8 @@ ostream &operator<<(ostream &os, Elf32File &file) {
         os << file.symbolTable << endl;
 
         os << "String table: " << endl;
-        for (Elf32_Word i = 0; i < file.stringTable.size(); i++) {
-            os << i << ": " << file.stringTable[i] << endl;
+        for (Elf32_Word i = 0; i < file.symbolTable.symbolNames.size(); i++) {
+            os << i << ": " << file.symbolTable.symbolNames[i] << endl;
         }
         cout << endl;
 
@@ -250,7 +250,7 @@ void Elf32File::writeStringTable(vector<Elf32_Shdr> &additionalHeaders, fstream 
 
 void Elf32File::writeRelocationTables(vector<Elf32_Shdr> &additionalHeaders, fstream &file) {
     // rela tables
-    for (Elf32_Word sec = 0; sec < relocationTables.size(); sec++) {
+    for (Elf32_Word sec = 1; sec <= dataSections.size(); sec++) {
         auto &relaTable = relocationTables[sec];
 
         // if no relocation entries skip
@@ -368,5 +368,6 @@ void Elf32File::writeExecToOutputFile(const string &fileName) {
     file.seekg(SEEK_SET);
     file.write(reinterpret_cast<char *>(&elfHeader), sizeof(Elf32_Ehdr));
 }
+
 
 

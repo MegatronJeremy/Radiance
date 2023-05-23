@@ -25,5 +25,4 @@ struct SymbolTable {
     vector<Elf32_Sym> symbolDefinitions;
 
     vector<string> symbolNames;
-
 };

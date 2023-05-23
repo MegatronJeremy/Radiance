@@ -7,9 +7,9 @@
 #include <algorithm>
 
 Linker::Linker(const vector<string> &inputFiles, string outFileName,
-               const unordered_map<string, Elf32_Addr> &placeDefs, bool hexMode) :
+               const unordered_map<string, Elf32_Addr> &placeDefs, bool execMode) :
         outFileName(std::move(outFileName)),
-        execMode(hexMode),
+        execMode(execMode),
         placeDefs(placeDefs) {
     for (auto &f: inputFiles) {
         Elf32File e32;
@@ -24,11 +24,10 @@ Linker::Linker(const vector<string> &inputFiles, string outFileName,
     // setting up out file
     outFile.addUndefinedSection();
 
-    if (!hexMode) {
+    if (!execMode) {
         // ignore place defs
         this->placeDefs.clear();
     }
-
 }
 
 void Linker::run() {
@@ -40,8 +39,8 @@ void Linker::run() {
     getSectionMappings();
     cout << "Defining symbols" << endl;
     defineAllSymbols();
-
     cout << "Generating symbols " << endl;
+
     generateSymbols();
 
     cout << "Getting relocations" << endl;
@@ -57,7 +56,6 @@ void Linker::run() {
     addSectionsToOutput();
 
     cout << "Writing to executable file" << endl;
-    cout << outFile << endl;
     if (execMode) {
         outFile.writeExecToOutputFile(outFileName);
     } else {
@@ -67,7 +65,7 @@ void Linker::run() {
 
 void Linker::getSectionSizes(Elf32File &eFile) {
     for (Elf32_Shdr &sh: eFile.sectionTable.sectionDefinitions) {
-        if (execMode && sh.sh_type != SHT_PROGBITS && sh.sh_type != SHT_NOBITS) {
+        if (sh.sh_type != SHT_PROGBITS && sh.sh_type != SHT_NOBITS) {
             // only keep program sections
             continue;
         }
@@ -82,6 +80,7 @@ void Linker::getSectionSizes(Elf32File &eFile) {
 
 void Linker::getSectionMappings() {
     Elf32_Addr highestEnd = 0;
+
     for (auto &it: placeDefs) {
         highestEnd = max(highestEnd, it.second + sectionSizes[it.first]);
     }
@@ -113,6 +112,7 @@ void Linker::getSectionMappings() {
             }
 
             sh.sh_addr += placeDefs[sectionName]; // sh_addr starts from offset inside of new section
+            sh.sh_size = sectionSizes[sectionName];
 
             if (newSection) { // add to section table with new section index
                 outFile.sectionTable.add(sh, sectionName);
@@ -139,8 +139,8 @@ void Linker::getSectionMappings() {
 
 
 void Linker::defineAllSymbols() {
-    unordered_map<string, vector<Elf32_Sym *>> undefinedDefs;
-    unordered_map<string, Elf32_Sym *> globalDefs;
+    unordered_set<string> undefinedDefs;
+    unordered_set<string> globalDefs;
 
     for (Elf32File &eFile: inputFileObjects) {
         for (Elf32_Sym &sym: eFile.symbolTable.symbolDefinitions) {
@@ -152,19 +152,12 @@ void Linker::defineAllSymbols() {
             string symName = eFile.symbolName(sym);
             cout << "Handling: ---------------- " << symName << endl;
 
-            if (sym.st_shndx == SHN_UNDEF) {
-                if (globalDefs.find(symName) == globalDefs.end()) {
-                    cout << "Adding undefined def" << endl;
-                    // undefined weak symbol, add to U
-                    undefinedDefs[symName].emplace_back(&sym);
+            if (sym.st_shndx == SHN_UNDEF && globalDefs.count(symName) == 0) {
+                cout << "Adding undefined def" << endl;
+                // undefined weak symbol, add to U
+                undefinedDefs.insert(symName);
 
-                    cout << "ok" << endl;
-                } else {
-                    // add symbol definition
-                    cout << "Adding sym def" << endl;
-                    sym = *globalDefs[symName];
-                    cout << "OK" << endl;
-                }
+                cout << "ok" << endl;
             } else if (ELF32_ST_BIND(sym.st_info) == STB_GLOBAL) {
                 // defined global symbol
 
@@ -175,23 +168,15 @@ void Linker::defineAllSymbols() {
 
                 cout << "one" << endl;
                 // add sym to global defs
-                globalDefs[symName] = &sym;
+                globalDefs.insert(symName);
 
-                cout << "two" << endl;
+                // and erase from undefined symbols
+                undefinedDefs.erase(symName);
+
                 // subsection offset + address of new section
                 string sectionName = eFile.sectionName(sym);
                 sym.st_value += sectionMap[sectionName] + eFile.sectionTable.get(sym.st_shndx).sh_addr;
 
-                cout << "three" << endl;
-                // and define all undefined syms
-                for (auto &it: undefinedDefs[symName]) {
-                    *it = sym;
-                }
-                cout << "four" << endl;
-                cout << "Erasing " << symName << endl;
-                undefinedDefs.erase(symName);
-
-                cout << "ok" << endl;
             } else {
                 cout << "Update local" << endl;
                 cout << sym << endl;
@@ -200,13 +185,14 @@ void Linker::defineAllSymbols() {
                 sym.st_value += sectionMap[sectionName] + eFile.sectionTable.get(sym.st_shndx).sh_addr;
                 cout << "ok" << endl;
             }
+            cout << sym << endl;
         }
     }
     cout << "im here" << endl;
     if (execMode && !undefinedDefs.empty()) {
         string s = "Linker error: symbols without a definition: ";
         for (auto &it: undefinedDefs) {
-            s += it.first + " ";
+            s += it + " ";
         }
         throw runtime_error(s);
     }
@@ -219,8 +205,8 @@ void Linker::generateSymbols() {
         for (Elf32_Sym &sym: eFile.symbolTable.symbolDefinitions) {
             string symName = eFile.symbolName(sym);
 
-            if (outFile.symbolTable.get(symName) != nullptr) {
-                continue; // symbol already generated
+            if (sym.st_shndx == SHN_UNDEF) {
+                continue; // symbol defined in other section
             }
 
             Elf32_Sym nsym = sym;
@@ -228,8 +214,11 @@ void Linker::generateSymbols() {
             // only if section exists
             if (nsym.st_shndx != SHN_ABS && nsym.st_shndx != SHN_UNDEF) {
                 string sectionName = eFile.sectionName(sym);
+                cout << "Section name " << sectionName << endl;
                 nsym.st_shndx = outFile.sectionTable.getSectionIndex(sectionName);
             }
+
+            cout << "For symbol " << symName << " " << nsym << endl;
 
             outFile.symbolTable.insertSymbolDefinition(nsym, symName);
 
@@ -243,16 +232,21 @@ void Linker::generateSymbols() {
 
 void Linker::generateRelocations(Elf32File &eFile) {
     for (auto &it: eFile.relocationTables) {
+        Elf32_Shdr &sh = eFile.sectionTable.get(it.first);
+        string secName = eFile.sectionName(sh);
         for (Elf32_Rela &rel: it.second.relocationEntries) {
-            Elf32_Sym &sym = eFile.symbolTable.symbolDefinitions[ELF32_R_SYM(rel.r_info)];
-            string symName = eFile.sectionName(sym);
-            Elf32_Shdr &sh = eFile.sectionTable.get(sym.st_shndx);
+            string symName = eFile.symbolTable.symbolNames[ELF32_R_SYM(rel.r_info)];
 
-            // symbol index in out file
-            Elf32_Word outSymNdx = outFile.symbolTable.getSymbolIndex(symName);
+            // symbol in out file
+            Elf32_Sym *outSym = outFile.symbolTable.get(symName);
 
-            rel.r_offset += sh.sh_addr; // add new section start offset (from zero)
-            rel.r_info = ELF32_R_INFO(outSymNdx, ELF32_R_TYPE(rel.r_info));
+            Elf32_Rela outRela = rel;
+            outRela.r_offset += sh.sh_addr; // add new section start offset (from zero)
+            outRela.r_info = ELF32_R_INFO(outSym->st_name, ELF32_R_TYPE(rel.r_info));
+
+            Elf32_Section shndx = outFile.sectionTable.getSectionIndex(secName);
+
+            outFile.relocationTables[shndx].insertRelocationEntry(rel);
         }
     }
 }
@@ -297,7 +291,7 @@ void Linker::addSectionsToOutput() {
         for (size_t i = 1; i <= file.dataSections.size(); i++) {
             string sectionName = file.sectionName(i);
 
-            Elf32_Section outSection = file.sectionTable.getSectionIndex(sectionName);
+            Elf32_Section outSection = outFile.sectionTable.getSectionIndex(sectionName);
 
             if (outFile.dataSections.find(outSection) == outFile.dataSections.end()) {
                 // new section
