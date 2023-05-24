@@ -31,19 +31,14 @@ Linker::Linker(const vector<string> &inputFiles, string outFileName,
 }
 
 void Linker::run() {
-    cout << "Getting section sizes" << endl;
     for (auto &file: inputFileObjects) {
         getSectionSizes(file);
     }
-    cout << "Getting section mappings" << endl;
     getSectionMappings();
-    cout << "Defining symbols" << endl;
     defineAllSymbols();
-    cout << "Generating symbols " << endl;
 
     generateSymbols();
 
-    cout << "Getting relocations" << endl;
     for (auto &file: inputFileObjects) {
         if (execMode) {
             handleRelocations(file);
@@ -52,10 +47,8 @@ void Linker::run() {
         }
     }
 
-    cout << "Adding sections to output" << endl;
     addSectionsToOutput();
 
-    cout << "Writing to executable file" << endl;
     if (execMode) {
         outFile.writeExecToOutputFile(outFileName);
     } else {
@@ -71,7 +64,6 @@ void Linker::getSectionSizes(Elf32File &eFile) {
         }
 
         string sectionName = eFile.sectionName(sh);
-        cout << "Getting size for: " << sectionName << endl;
         sh.sh_addr = sectionSizes[sectionName];
         // update new end of section
         sectionSizes[sectionName] += sh.sh_size;
@@ -97,9 +89,7 @@ void Linker::getSectionMappings() {
             }
 
             if (placeDefs.find(sectionName) == placeDefs.end()) { // no place definition
-                cout << "No place defs for symbol " << sectionName << endl;
                 if (execMode) {
-                    cout << highestEnd << endl;
                     placeDefs[sectionName] = highestEnd;
                     highestEnd += sectionSizes[sectionName];
                 }
@@ -118,7 +108,6 @@ void Linker::getSectionMappings() {
                 outFile.sectionTable.add(sh, sectionName);
             }
 
-            cout << "Placing symbol " + sectionName + " at address " << sh.sh_addr << endl;
         }
     }
 
@@ -150,23 +139,15 @@ void Linker::defineAllSymbols() {
             }
 
             string symName = eFile.symbolName(sym);
-            cout << "Handling: ---------------- " << symName << endl;
-
             if (sym.st_shndx == SHN_UNDEF && globalDefs.count(symName) == 0) {
-                cout << "Adding undefined def" << endl;
                 // undefined weak symbol, add to U
                 undefinedDefs.insert(symName);
-
-                cout << "ok" << endl;
             } else if (ELF32_ST_BIND(sym.st_info) == STB_GLOBAL) {
                 // defined global symbol
 
-                cout << "Adding global def" << endl;
                 if (globalDefs.find(symName) != globalDefs.end()) {
                     throw runtime_error("Linker error: multiple definitions of symbol: " + symName);
                 }
-
-                cout << "one" << endl;
                 // add sym to global defs
                 globalDefs.insert(symName);
 
@@ -176,19 +157,9 @@ void Linker::defineAllSymbols() {
                 // subsection offset + address of new section
                 string sectionName = eFile.sectionName(sym);
                 sym.st_value += sectionMap[sectionName] + eFile.sectionTable.get(sym.st_shndx).sh_addr;
-
-            } else {
-                cout << "Update local" << endl;
-                cout << sym << endl;
-                // just update local symbol value
-                string sectionName = eFile.sectionName(sym);
-                sym.st_value += sectionMap[sectionName] + eFile.sectionTable.get(sym.st_shndx).sh_addr;
-                cout << "ok" << endl;
             }
-            cout << sym << endl;
         }
     }
-    cout << "im here" << endl;
     if (execMode && !undefinedDefs.empty()) {
         string s = "Linker error: symbols without a definition: ";
         for (auto &it: undefinedDefs) {
@@ -197,7 +168,6 @@ void Linker::defineAllSymbols() {
         throw runtime_error(s);
     }
 
-    cout << "done" << endl;
 }
 
 void Linker::generateSymbols() {
@@ -205,20 +175,19 @@ void Linker::generateSymbols() {
         for (Elf32_Sym &sym: eFile.symbolTable.symbolDefinitions) {
             string symName = eFile.symbolName(sym);
 
-            if (sym.st_shndx == SHN_UNDEF) {
-                continue; // symbol defined in other section
+            if ((ELF32_ST_TYPE(sym.st_info) != STT_SECTION && ELF32_ST_BIND(sym.st_info) != STB_GLOBAL) ||
+                sym.st_shndx == SHN_UNDEF) {
+                continue; // symbol defined in other section or symbol is not global
             }
+
 
             Elf32_Sym nsym = sym;
 
             // only if section exists
             if (nsym.st_shndx != SHN_ABS && nsym.st_shndx != SHN_UNDEF) {
                 string sectionName = eFile.sectionName(sym);
-                cout << "Section name " << sectionName << endl;
                 nsym.st_shndx = outFile.sectionTable.getSectionIndex(sectionName);
             }
-
-            cout << "For symbol " << symName << " " << nsym << endl;
 
             outFile.symbolTable.insertSymbolDefinition(nsym, symName);
 
@@ -256,11 +225,8 @@ void Linker::handleRelocations(Elf32File &eFile) {
         Elf32_Section sec = it.first;
         Elf32_Sym &secSym = eFile.sectionSymbol(sec);
         stringstream &secData = eFile.dataSections[sec];
-        cout << secSym << endl;
         for (auto &rel: it.second.relocationEntries) {
             Elf32_Sym &sym = eFile.symbolTable.symbolDefinitions[ELF32_R_SYM(rel.r_info)];
-            cout << ELF32_R_SYM(rel.r_info) << " " << ELF32_R_TYPE(rel.r_info) << endl;
-            cout << "Relocating: " << sym << endl;
 
             Elf32_Addr relVal;
 

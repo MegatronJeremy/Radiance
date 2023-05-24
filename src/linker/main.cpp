@@ -80,7 +80,4 @@ int main(int argc, char **argv) {
         cerr << e.what() << endl;
         return -1;
     }
-
-    cout << "done" << endl;
-
 }

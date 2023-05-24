@@ -203,7 +203,6 @@ void Assembler::incLocationCounter(Elf32_Word bytes) {
 
 
 void Assembler::generateAbsoluteRelocation(const string &symbol) {
-
     // for generating R_32S
     Elf32_Sym *sd = eFile.symbolTable.get(symbol);
     Elf32_Rela rd;
