@@ -82,32 +82,27 @@ void Linker::getSectionMappings() {
     // first all place definitions
     for (Elf32File &eFile: inputFileObjects) {
         for (Elf32_Shdr &sh: eFile.sectionTable.sectionDefinitions) {
-            bool newSection = false;
             string sectionName = eFile.sectionName(sh);
             if ((sh.sh_type != SHT_PROGBITS && sh.sh_type != SHT_NOBITS)) {
                 continue; // only for program sections
             }
 
-            if (placeDefs.find(sectionName) == placeDefs.end()) { // no place definition
-                if (execMode) {
-                    placeDefs[sectionName] = highestEnd;
-                    highestEnd += sectionSizes[sectionName];
-                }
+            if (placeDefs.find(sectionName) == placeDefs.end() && execMode) { // no place definition
+                placeDefs[sectionName] = highestEnd;
+                highestEnd += sectionSizes[sectionName];
             }
-            if (sh.sh_addr == 0) { // start of new section
-                newSection = true;
-                if (execMode) { // don't check intervals for exec mode
-                    intervals.push_back({placeDefs[sectionName], placeDefs[sectionName] + sectionSizes[sectionName]});
-                }
-            }
+
+            bool newSection = sh.sh_addr == 0; // start of new section
 
             sh.sh_addr += placeDefs[sectionName]; // sh_addr starts from offset inside of new section
             sh.sh_size = sectionSizes[sectionName];
 
             if (newSection) { // add to section table with new section index
                 outFile.sectionTable.add(sh, sectionName);
+                if (execMode) { // check interval overlap in exec mode
+                    intervals.push_back({placeDefs[sectionName], placeDefs[sectionName] + sectionSizes[sectionName]});
+                }
             }
-
         }
     }
 
@@ -179,7 +174,6 @@ void Linker::generateSymbols() {
                 sym.st_shndx == SHN_UNDEF) {
                 continue; // symbol defined in other section or symbol is not global
             }
-
 
             Elf32_Sym nsym = sym;
 

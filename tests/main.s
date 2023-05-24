@@ -16,9 +16,9 @@ wait:
 	halt
 .global my_counter
 .section my_data
-my_counter:
 	.word 0, 0xfff
 	.word 0xabcd
+my_counter:
 	.word 0xffffffff
 	.word 0xabcdefab
 .end
