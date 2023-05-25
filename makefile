@@ -19,6 +19,14 @@ LD_CXX=$(wildcard $(LD_CODE)/*.cpp)
 LD_OBJ=$(patsubst $(LD_CODE)/%.cpp,$(LD_BUILD)/%.o,$(LD_CXX))
 LD_DEP=$(patsubst $(LD_CODE)/%.cpp,$(LD_BUILD)/%.d,$(LD_CXX))
 
+EM_BUILD=$(BUILD)/src/emulator
+EM_INC=./inc/emulator ./inc/common
+EM_BIN=/usr/bin/emulator
+EM_CODE=./src/emulator
+EM_CXX=$(wildcard $(EM_CODE)/*.cpp)
+EM_OBJ=$(patsubst $(EM_CODE)/%.cpp,$(EM_BUILD)/%.o,$(EM_CXX))
+EM_DEP=$(patsubst $(EM_CODE)/%.cpp,$(EM_BUILD)/%.d,$(EM_CXX))
+
 RO_BUILD=$(BUILD)/src/readobj
 RO_INC=./inc/common
 RO_BIN=/usr/bin/readobj
@@ -37,48 +45,70 @@ COM_DEP=$(patsubst $(COM_CODE)/%.cpp,$(COM_BUILD)/%.d,$(COM_CXX))
 MSC_BUILD=$(BUILD)/misc
 MSC_INC=./misc
 MSC_CODE=./misc
-MSC_CXX=./misc/parser.cpp ./misc/lexer.cpp
+MSC_CXX=$(wildcard $(MSC_CODE)/*.cpp)
 MSC_OBJ=$(patsubst $(MSC_CODE)/%.cpp,$(MSC_BUILD)/%.o,$(MSC_CXX))
 MSC_DEP=$(patsubst $(MSC_CODE)/%.cpp,$(MSC_BUILD)/%.d,$(MSC_CXX))
 
-BUILD_DIRS=$(BUILD) $(AS_BUILD) $(LD_BUILD) $(COM_BUILD) $(RO_BUILD) $(MSC_BUILD)
+BUILD_DIR_AS=$(AS_BUILD) $(COM_BUILD) $(MSC_BUILD)
+BUILD_DIR_RO=$(RO_BUILD) $(COM_BUILD)
+BUILD_DIR_LD=$(LD_BUILD) $(COM_BUILD)
+BUILD_DIR_EM=$(EM_BUILD) $(COM_BUILD)
 
 CXX=g++
-OPT=-O3
+OPT=-O0
 DEPFLAGS=-MP -MD
 CXXFLAGS=-Wall -Wextra -g $(foreach D,$(INCDIRS),-I$(D)) $(OPT) $(DEPFLAGS)
 
-all: directories assembler readobj linker emulator
+all: assembler readobj linker emulator
 
-directories: $(BUILD_DIRS)
-
-$(BUILD_DIRS):
+$(AS_BUILD):
 	$(MKDIR_P) $@
 
-assembler: $(AS_BIN)
+$(COM_BUILD):
+	$(MKDIR_P) $@
 
-readobj: $(RO_BIN)
+$(MSC_BUILD):
+	$(MKDIR_P) $@
 
-linker: $(LD_BIN)
+$(RO_BUILD):
+	$(MKDIR_P) $@
 
-emulator:
+$(LD_BUILD):
+	$(MKDIR_P) $@
 
-$(AS_BIN):  $(MSC_OBJ) $(COM_OBJ) $(AS_OBJ)
-	$(CXX) -o $@ $^
+$(EM_BUILD):
+	$(MKDIR_P) $@
 
-$(RO_BIN):  $(COM_OBJ) $(RO_OBJ)
+assembler: $(BUILD_DIR_AS) $(AS_BIN)
+
+readobj: $(BUILD_DIR_RO) $(RO_BIN)
+
+linker: $(BUILD_DIR_LD) $(LD_BIN)
+
+emulator: $(BUILD_DIR_EM) $(EM_BIN)
+
+$(AS_BIN): $(MSC_OBJ) $(COM_OBJ) $(AS_OBJ)
 	$(CXX) -o $@ $^
 
 $(LD_BIN): $(COM_OBJ) $(LD_OBJ)
 	$(CXX) -o $@ $^
 
+$(EM_BIN): $(COM_OBJ) $(EM_OBJ)
+	$(CXX) -o $@ $^
+
+$(RO_BIN): $(COM_OBJ) $(RO_OBJ)
+	$(CXX) -o $@ $^
+
 $(BUILD)/src/assembler/%.o: $(AS_CODE)/%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-$(BUILD)/src/readobj/%.o: $(RO_CODE)/%.cpp
+$(BUILD)/src/linker/%.o: $(LD_CODE)/%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-$(BUILD)/src/linker/%.o: $(LD_CODE)/%.cpp
+$(BUILD)/src/emulator/%.o: $(EM_CODE)/%.cpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+$(BUILD)/src/readobj/%.o: $(RO_CODE)/%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 $(BUILD)/misc/%.o: $(MSC_CODE)/%.cpp
@@ -87,15 +117,11 @@ $(BUILD)/misc/%.o: $(MSC_CODE)/%.cpp
 $(BUILD)/src/common/%.o: $(COM_CODE)/%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-$(MSC_CXX):
-	$(MAKE) -C misc all
-
 clean:
-	$(MAKE) -C misc clean
 	rm -rf out
-	rm $(TEST_DIR)/*.o
+	rm -rf $(TEST_DIR)/*.o
 
 
--include $(AS_DEP) $(RO_DEP) $(LD_DEP) $(COM_DEP) $(MSC_DEP)
+-include $(AS_DEP) $(RO_DEP) $(LD_DEP) $(EM_DEP) $(COM_DEP) $(MSC_DEP)
 
-.PHONY: directories all assembler linker emulator clean
+.PHONY: all misc assembler linker emulator clean

@@ -47,9 +47,7 @@ public:
 
     void insertIretIns();
 
-    void generateAbsoluteRelocation(const string &symbol);
-
-    void generateRelativeRelocation(Elf32_Sym *sd);
+    Elf32_Word generateAbsoluteRelocation(const string &symbol);
 
     void endAssembly();
 

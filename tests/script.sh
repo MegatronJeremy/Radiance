@@ -1,6 +1,7 @@
 #!/bin/bash
 
-assembler main.s -o main.o
-assembler sample.s -o sample.o
-linker main.o sample.o -o bin.o --place=text@0x40000000 --place=my_code_handler@0x4000F000 --place=random_section@0x4000 --relocatable
-readobj bin.o
+assembler handler.s -o handler.o
+assembler -o main.o main.s
+linker main.o handler.o -o program.o --place=my_code_main@0x40000000 \
+  --place=my_code_handler@0x4000F000 --hex
+emulator program.o

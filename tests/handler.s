@@ -30,4 +30,6 @@ finish:
     pop %r2
     pop %r1
     iret
+.skip 10
+
 .end

@@ -1,7 +1,6 @@
 CXXFILES=lexer.cpp parser.cpp
-HXXFILES=lexer.hpp parser.hpp
 
-all: $(CXXFILES) $(HXXFILES)
+all: $(CXXFILES)
 
 lexer.cpp: lexer.l
 	flex lexer.l 

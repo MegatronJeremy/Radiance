@@ -29,7 +29,7 @@ private:
 
     void addSectionsToOutput();
 
-    static void handleRelocations(Elf32File &eFile);
+    void handleRelocations(Elf32File &eFile);
 
     void generateRelocations(Elf32File &eFile);
 

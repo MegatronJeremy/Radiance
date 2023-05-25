@@ -18,7 +18,7 @@ Ins32 Instruction32::getInstruction(yytokentype token, const std::vector<int16_t
 
     for (field_setter setOrDefaultX: setOrDefaultParams) {
 
-        uint8_t field = 0;
+        int16_t field = 0;
         if (currentParameter < parameters.size()) {
             field = parameters[currentParameter];
         }
@@ -69,7 +69,9 @@ void Instruction32::setOpcode(yytokentype token, Ins32 &ins32) {
             {POP,      LD_OP},
             {POP_CS,   LD_OP},
             {CSRRD,    LD_OP},
-            {CSRWR,    LD_OP}
+            {CSRWR,    LD_OP},
+
+            {NOP,      LOG_OP}
     };
     auto it = opcodeMap.find(token);
     if (opcodeMap.find(token) == opcodeMap.end()) {
@@ -108,7 +110,9 @@ void Instruction32::setMode(yytokentype token, Ins32 &ins32) {
             {POP,      MODE_LD_REGIND_PTR_UPD},
             {POP_CS,   MODE_LD_CSR_REGIND_PTR_UPD},
             {CSRRD,    MODE_LD_GPR_CSR},
-            {CSRWR,    MODE_LD_CSR_GPR}
+            {CSRWR,    MODE_LD_CSR_GPR},
+
+            {NOP,      MODE_XOR}
     };
 
     auto it = modeMap.find(token);
@@ -123,7 +127,10 @@ void Instruction32::setMode(yytokentype token, Ins32 &ins32) {
 bool Instruction32::setOrDefaultRegA(yytokentype token, Ins32 &ins32, int16_t field) {
     static std::unordered_map<yytokentype, Reg> regAMap = {
             {PUSH, SP},
-            {XCHG, R0}
+
+            {XCHG, R0},
+
+            {NOP,  R0}
     };
 
     auto it = regAMap.find(token);
@@ -140,8 +147,13 @@ bool Instruction32::setOrDefaultRegA(yytokentype token, Ins32 &ins32, int16_t fi
 bool Instruction32::setOrDefaultRegB(yytokentype token, Ins32 &ins32, int16_t field) {
     static std::unordered_map<yytokentype, Reg> regBMap = {
             {LD_PCREL, PC},
-            {POP,      SP},
-            {POP_CS,   SP}
+
+            {PUSH, R0},
+
+            {POP, SP},
+            {POP_CS, SP},
+
+            {NOP, R0}
     };
 
     auto it = regBMap.find(token);
@@ -157,7 +169,9 @@ bool Instruction32::setOrDefaultRegB(yytokentype token, Ins32 &ins32, int16_t fi
 
 bool Instruction32::setOrDefaultRegC(yytokentype token, Ins32 &ins32, int16_t field) {
     static std::unordered_map<yytokentype, Reg> regCMap = {
-            {LD_REG, R0}
+            {LD_REG, R0},
+
+            {NOP,    R0}
     };
 
     auto it = regCMap.find(token);
@@ -175,7 +189,7 @@ bool Instruction32::setOrDefaultDisp(yytokentype token, Ins32 &ins32, int16_t fi
     static std::unordered_map<yytokentype, int16_t> dispMap = {
             {PUSH,   -4},
             {POP,    +4},
-            {POP_CS, +4}
+            {POP_CS, +4},
     };
 
     auto it = dispMap.find(token);

@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
             {"place",       required_argument, nullptr, 'p'},
             {"hex",         no_argument,       nullptr, 'h'},
             {"relocatable", no_argument,       nullptr, 'r'},
-            {nullptr,       0,                 nullptr, 0}
+            {nullptr, 0,                       nullptr, 0}
     };
 
     string out_file = "a.hex";
@@ -70,7 +70,6 @@ int main(int argc, char **argv) {
         input_files.emplace_back(file);
         optind++;
     }
-
 
     try {
         Linker ld{input_files, out_file, place_defs, hex};

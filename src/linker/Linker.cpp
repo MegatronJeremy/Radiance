@@ -128,8 +128,8 @@ void Linker::defineAllSymbols() {
 
     for (Elf32File &eFile: inputFileObjects) {
         for (Elf32_Sym &sym: eFile.symbolTable.symbolDefinitions) {
-            if (sym.st_shndx == SHN_ABS || sym.st_name == SHN_UNDEF) {
-                // nothing to do - symbol value is absolute or symbol is for undefined section
+            if (sym.st_name == SHN_UNDEF) {
+                // nothing to do - symbol value is in undefined section
                 continue;
             }
 
@@ -139,16 +139,19 @@ void Linker::defineAllSymbols() {
                 undefinedDefs.insert(symName);
             } else if (ELF32_ST_BIND(sym.st_info) == STB_GLOBAL) {
                 // defined global symbol
-
                 if (globalDefs.find(symName) != globalDefs.end()) {
                     throw runtime_error("Linker error: multiple definitions of symbol: " + symName);
                 }
+
                 // add sym to global defs
                 globalDefs.insert(symName);
 
                 // and erase from undefined symbols
                 undefinedDefs.erase(symName);
+            }
 
+            if (sym.st_shndx != SHN_ABS &&
+                (ELF32_ST_BIND(sym.st_info) == STB_GLOBAL || ELF32_ST_TYPE(sym.st_info) == STT_SECTION)) {
                 // subsection offset + address of new section
                 string sectionName = eFile.sectionName(sym);
                 sym.st_value += sectionMap[sectionName] + eFile.sectionTable.get(sym.st_shndx).sh_addr;
@@ -221,21 +224,22 @@ void Linker::handleRelocations(Elf32File &eFile) {
         stringstream &secData = eFile.dataSections[sec];
         for (auto &rel: it.second.relocationEntries) {
             Elf32_Sym &sym = eFile.symbolTable.symbolDefinitions[ELF32_R_SYM(rel.r_info)];
+            string symName = eFile.symbolName(sym);
 
+            Elf32_Sym *outSym = outFile.symbolTable.get(symName);
             Elf32_Addr relVal;
 
             switch (ELF32_R_TYPE(rel.r_info)) {
                 case R_32S:
                 case R_32:
                     // absolute relocation: S + A
-                    relVal = sym.st_value + rel.r_addend;
+                    relVal = outSym->st_value + rel.r_addend;
                     secData.seekp(rel.r_offset);
                     break;
                 case R_PC32:
                     // relative relocation: S - P + A
-                    relVal = sym.st_value - (rel.r_offset + secSym.st_value) + rel.r_addend;
+                    relVal = outSym->st_value - (rel.r_offset + secSym.st_value) + rel.r_addend;
                     secData.seekp(rel.r_offset);
-                    secData.write(reinterpret_cast<char *>(&sym.st_value), sizeof(Elf32_Addr));
                     break;
                 default:
                     throw runtime_error("Linker error: unrecognized relocation type");

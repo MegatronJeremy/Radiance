@@ -55,6 +55,67 @@ enum {
     DISP
 };
 
+/* Instruction opcode enumerations */
+
+enum {
+    HALT_OP = 0b0000,
+    INT_OP,
+    CALL_OP,
+    JMP_OP,
+    XCHG_OP,
+    ALU_OP,
+    LOG_OP,
+    SHF_OP,
+    ST_OP,
+    LD_OP
+};
+
+
+/* Instruction mode enumerations */
+
+enum {
+    MODE_JMP = 0b0000,
+    MODE_BEQ,
+    MODE_BNE,
+    MODE_BGT
+};
+
+enum {
+    MODE_ADD = 0b0000,
+    MODE_SUB,
+    MODE_MUL,
+    MODE_DIV
+};
+
+enum {
+    MODE_NOT = 0b0000,
+    MODE_AND,
+    MODE_OR,
+    MODE_XOR
+};
+
+enum {
+    MODE_SHL = 0b0000,
+    MODE_SHR = 0b0001
+};
+
+enum {
+    MODE_ST_REGIND_DSP = 0b0000,
+    MODE_ST_REGIND_PTR_UPD
+};
+
+enum {
+    MODE_LD_GPR_CSR = 0b0000,
+    MODE_LD_GPR_GPR_DSP,
+    MODE_LD_REGIND_DSP,
+    MODE_LD_REGIND_PTR_UPD,
+    MODE_LD_CSR_GPR,
+    MODE_LD_CSR_OR,
+    MODE_LD_CSR_REGIND_DSP,
+    MODE_LD_CSR_REGIND_PTR_UPD
+};
+
+
 typedef uint32_t Ins32;
 typedef uint8_t Reg;
 
@@ -84,76 +145,19 @@ public:
         return (val & 0x0000f000) >> 12;
     }
 
+    static Reg getNextGPR(Reg reg) {
+        return reg % 11 + 3; // GPR 3 - 13 are available for assembler use
+    }
+
     static int16_t extractDisp(Ins32 val) {
-        uint16_t extracted = val & 0x00000fff;
+        uint16_t extracted = val & 0x0fff;
         if (extracted & 0x800) {  // MSB is set, value is negative
-            extracted |= 0xfffff000;  // sign-extend
+            extracted |= 0xf000;  // sign-extend
         }
         return (int16_t) extracted;
     }
 
 private:
-
-
-    /* Instruction opcode enumerations */
-
-    enum {
-        HALT_OP = 0b0000,
-        INT_OP,
-        CALL_OP,
-        JMP_OP,
-        XCHG_OP,
-        ALU_OP,
-        LOG_OP,
-        SHF_OP,
-        ST_OP,
-        LD_OP
-    };
-
-    /* Instruction mode enumerations */
-
-    enum {
-        MODE_JMP = 0b0000,
-        MODE_BEQ,
-        MODE_BNE,
-        MODE_BGT
-    };
-
-    enum {
-        MODE_ADD = 0b0000,
-        MODE_SUB,
-        MODE_MUL,
-        MODE_DIV
-    };
-
-    enum {
-        MODE_NOT = 0b0000,
-        MODE_AND,
-        MODE_OR,
-        MODE_XOR
-    };
-
-    enum {
-        MODE_SHL = 0b0000,
-        MODE_SHR = 0b0001
-    };
-
-    enum {
-        MODE_ST_REGIND_DSP = 0b0000,
-        MODE_ST_REGIND_PTR_UPD
-    };
-
-    enum {
-        MODE_LD_GPR_CSR = 0b0000,
-        MODE_LD_GPR_GPR_DSP,
-        MODE_LD_REGIND_DSP,
-        MODE_LD_REGIND_PTR_UPD,
-        MODE_LD_CSR_GPR,
-        MODE_LD_CSR_OR,
-        MODE_LD_CSR_REGIND_DSP,
-        MODE_LD_CSR_REGIND_PTR_UPD
-    };
-
     static void setOpcode(yytokentype token, Ins32 &ins32);
 
     static void setMode(yytokentype token, Ins32 &ins32);

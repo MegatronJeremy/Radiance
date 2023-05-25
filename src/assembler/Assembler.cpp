@@ -169,7 +169,8 @@ void Assembler::initSpaceWithConstant(const string &symbol) {
         addSymbolUsage(symbol);
     } else {
         // generate relocation
-        generateAbsoluteRelocation(symbol);
+        Elf32_Word relocationValue = generateAbsoluteRelocation(symbol);
+        eFile.dataSections[currentSection].write(reinterpret_cast<char *>(&relocationValue), sizeof(Elf32_Word));
     }
     incLocationCounter();
 }
@@ -202,7 +203,7 @@ void Assembler::incLocationCounter(Elf32_Word bytes) {
 }
 
 
-void Assembler::generateAbsoluteRelocation(const string &symbol) {
+Elf32_Word Assembler::generateAbsoluteRelocation(const string &symbol) {
     // for generating R_32S
     Elf32_Sym *sd = eFile.symbolTable.get(symbol);
     Elf32_Rela rd;
@@ -212,7 +213,7 @@ void Assembler::generateAbsoluteRelocation(const string &symbol) {
     if (sd->st_shndx == SHN_ABS) {
         // already absolute, no need for relocation
         relocationValue = sd->st_value;
-        return;
+        return relocationValue;
     } else if (sd->st_shndx != SHN_UNDEF && ELF32_ST_BIND(sd->st_info) == STB_LOCAL) {
         // if symbol is local use the section index
         rd.r_addend = static_cast<Elf32_Sword>(sd->st_value);
@@ -231,50 +232,18 @@ void Assembler::generateAbsoluteRelocation(const string &symbol) {
     auto &currentRelaTable = eFile.relocationTables[currentSection];
     currentRelaTable.insertRelocationEntry(rd);
 
-    eFile.dataSections[currentSection].write(reinterpret_cast<char *>(&relocationValue), sizeof(Elf32_Word));
-}
-
-
-void Assembler::generateRelativeRelocation(Elf32_Sym *sd) {
-    // for generating R_PC32
-    Elf32_Word relocationValue;
-    if (sd->st_shndx == currentSection) {
-        // no need for a relocation, same section
-        relocationValue = sd->st_value - locationCounter - INSTRUCTION_LEN_BYTES;
-    } else {
-        // generate relocation value
-        Elf32_Rela rd;
-
-        if (ELF32_ST_BIND(sd->st_info) == STB_LOCAL) {
-            // if symbol is local use the section index
-            Elf32_Word sectionName = eFile.sectionTable.get(sd->st_shndx).sh_name;
-
-            rd.r_addend = static_cast<Elf32_Sword>(sd->st_value - locationCounter - INSTRUCTION_LEN_BYTES);
-            rd.r_info = ELF32_R_INFO(sectionName, R_PC32);
-        } else {
-            // use the symbol name if globally visible
-            rd.r_addend = -INSTRUCTION_LEN_BYTES;
-            rd.r_info = ELF32_R_INFO(sd->st_name, R_PC32);
-        }
-
-        // where to place relocation
-        rd.r_offset = locationCounter;
-
-        auto &currentRelaTable = eFile.relocationTables[currentSection];
-        currentRelaTable.insertRelocationEntry(rd);
-
-        // write zeroes
-        relocationValue = 0;
-    }
-
-    eFile.dataSections[currentSection].write(reinterpret_cast<char *>(&relocationValue), sizeof(Elf32_Word));
+    return relocationValue;
 }
 
 void Assembler::zeroInitSpace(Elf32_Word bytes) {
     incLocationCounter(bytes);
 
+    if (pass == 1) {
+        return; // do nothing
+    }
+
     char buff[bytes];
-    memset(buff, 0, sizeof(buff));
+    memset(buff, 0xbb, sizeof(buff));
     eFile.dataSections[currentSection].write(buff, bytes);
 }
 
@@ -313,27 +282,77 @@ Elf32_Addr Assembler::getPoolConstantAddr(const PoolConstant &constant) {
 
 void Assembler::insertFlowControlIns(yytokentype type, const PoolConstant &constant,
                                      const vector<int16_t> &fields) {
-    if (pass == 1 && !constant.isNumeric) {
+    if (!constant.isNumeric) {
         // add symbol usage if in first pass
         addSymbolUsage(constant.symbol);
     }
 
     if (constant.isNumeric && positiveValueFitsInDisp(constant.number)) {
         insertInstruction(type, {R0, fields[REG_B], fields[REG_C], static_cast<int16_t>(constant.number)});
-    } else {
-        Elf32_Addr poolConstantAddr = getPoolConstantAddr(constant);
-        int16_t offsetToPoolLiteral = getDisplacement(poolConstantAddr, locationCounter);
-
-        // TODO an additional check for free registers?
-        insertInstruction(PUSH, {R13});
-        insertInstruction(LD_PCREL, {R13, R0, offsetToPoolLiteral});
-        insertInstruction(type, {R13, fields[REG_B], fields[REG_C]});
-        insertInstruction(POP, {R13});
+        return;
     }
+
+    if (pass == 2 && !constant.isNumeric) {
+        Elf32_Sym *sd = eFile.symbolTable.get(constant.symbol);
+        if (sd->st_shndx == currentSection) { // no need for literal poool, use pc relative addressing
+            int16_t disp = getDisplacement(sd->st_value, locationCounter + INSTRUCTION_LEN_BYTES);
+            insertInstruction(type, {PC, fields[REG_B], fields[REG_C], disp});
+
+            // BUT PADDING NEEDED TO KEEP THE CODE SIZE
+            size_t pad;
+            if (type == CALL || type == BGT) pad = 6;
+            else if (type != JMP) pad = 5;
+            else pad = 4;
+
+            for (size_t i = 0; i < pad; i++) {
+                insertInstruction(NOP);
+            }
+            return;
+        }
+    }
+
+    // code blocks checking jump condition using negation
+    if (type == BEQ) {
+        insertInstruction(BNE, {PC, fields[REG_B], fields[REG_C], 5 * INSTRUCTION_LEN_BYTES}); // skip over code block
+    } else if (type == BNE) {
+        insertInstruction(BEQ, {PC, fields[REG_B], fields[REG_C], 5 * INSTRUCTION_LEN_BYTES});
+    } else if (type == BGT) {
+        // check for two conditions to fulfill negation
+        insertInstruction(BGT, {PC, fields[REG_C], fields[REG_B], 6 * INSTRUCTION_LEN_BYTES}); // invert registers
+        insertInstruction(BEQ, {PC, fields[REG_B], fields[REG_C], 5 * INSTRUCTION_LEN_BYTES}); // skip block
+    }
+
+    // insert long jump
+    int16_t stackR13Offs = -2 * WORD_LEN_BYTES;
+    int16_t stackJmpOffs = -3 * WORD_LEN_BYTES;
+
+    Elf32_Addr poolConstantAddr = getPoolConstantAddr(constant);
+
+    insertInstruction(ST, {SP, R0, R13, stackR13Offs}); // store above top of stack (reserve one location)
+
+    int16_t offsetToPoolLiteral = getDisplacement(poolConstantAddr,
+                                                  locationCounter + WORD_LEN_BYTES); // one forward
+    insertInstruction(LD_PCREL, {R13, R0, offsetToPoolLiteral}); // load pool literal value
+    insertInstruction(ST, {SP, R0, R13, stackJmpOffs}); // store above top of stack
+
+
+    if (type == CALL) {
+        // push pc of instruction after jump, before jump
+        insertInstruction(LD_REG, {R13, PC, 3 * INSTRUCTION_LEN_BYTES}); // skip over three instructions
+        insertInstruction(PUSH, {R13}); // push return PC on reserved stack location
+        stackJmpOffs += WORD_LEN_BYTES; // because of push
+        stackR13Offs += WORD_LEN_BYTES;
+    }
+
+    // restore R13
+    insertInstruction(LD, {R13, SP, R0, stackR13Offs});
+
+    // pseudo-jump using load
+    insertInstruction(LD, {PC, SP, R0, stackJmpOffs});
 }
 
 void Assembler::insertLoadIns(yytokentype type, const PoolConstant &poolConstant, vector<int16_t> &&fields) {
-    if (pass == 1 && !poolConstant.isNumeric) {
+    if (!poolConstant.isNumeric) {
         // add symbol usage if in first pass
         addSymbolUsage(poolConstant.symbol);
     }
@@ -342,22 +361,39 @@ void Assembler::insertLoadIns(yytokentype type, const PoolConstant &poolConstant
     if (poolConstant.isNumeric && positiveValueFitsInDisp(poolConstant.number)) {
         fields.push_back(static_cast<int16_t>(poolConstant.number));
         insertInstruction(type, fields);
-    } else {
-        Elf32_Addr poolConstantAddr = getPoolConstantAddr(PoolConstant{poolConstant.symbol});
-        int16_t offsetToPoolLiteral = getDisplacement(locationCounter, poolConstantAddr);
-
-        insertInstruction(LD_PCREL, {fields[REG_A], R0, offsetToPoolLiteral});
-
-        // Use REG_A as additional accumulator in place of literal value (already part of fields),
-        // except for LD_IMM, where values is already loaded
-        if (type != LD_REG) {
-            insertInstruction(type, fields);
-        }
+        return;
     }
+
+    // load with pool value
+    Elf32_Addr poolConstantAddr = getPoolConstantAddr(PoolConstant{poolConstant.symbol});
+
+    if (type == LD_REG) {
+        // if ld_reg (load only immediate) this is all that is needed
+        int16_t offsetToPoolLiteral = getDisplacement(poolConstantAddr, locationCounter + WORD_LEN_BYTES);
+        fields.push_back(offsetToPoolLiteral);
+
+        insertInstruction(LD_PCREL, fields);
+        return;
+    }
+
+    Reg regT = Instruction32::getNextGPR(fields[REG_B]);
+    int16_t stackRTempOffs = -1 * WORD_LEN_BYTES;
+
+    insertInstruction(ST, {SP, R0, regT, stackRTempOffs}); // store above top of stack
+
+    // use an additional register to store symbol value
+    int16_t offsetToPoolLiteral = getDisplacement(poolConstantAddr, locationCounter + WORD_LEN_BYTES);
+    insertInstruction(LD_PCREL, {regT, R0, offsetToPoolLiteral});
+
+    // regC is always free here
+    insertInstruction(type, {fields[REG_A], fields[REG_B], regT});
+
+    // restore RTemp
+    insertInstruction(LD, {regT, SP, R0, stackRTempOffs});
 }
 
 void Assembler::insertStoreIns(yytokentype type, const PoolConstant &poolConstant, vector<int16_t> &&fields) {
-    if (pass == 1 && !poolConstant.isNumeric) {
+    if (!poolConstant.isNumeric) {
         // add symbol usage if in first pass
         addSymbolUsage(poolConstant.symbol);
     }
@@ -365,16 +401,22 @@ void Assembler::insertStoreIns(yytokentype type, const PoolConstant &poolConstan
     if (poolConstant.isNumeric && positiveValueFitsInDisp(poolConstant.number)) {
         fields.push_back(static_cast<int16_t>(poolConstant.number));
         insertInstruction(type, fields);
-    } else {
-        Elf32_Addr poolConstantAddr = getPoolConstantAddr(PoolConstant{poolConstant.symbol});
-        int16_t offsetToPoolLiteral = getDisplacement(locationCounter, poolConstantAddr);
-
-        // TODO an additional check for free registers?
-        insertInstruction(PUSH, {R13});
-        insertInstruction(LD_PCREL, {R13, R0, offsetToPoolLiteral});
-        insertInstruction(type, {R13, fields[REG_B], fields[REG_C]}); // REG_A field is always free
-        insertInstruction(POP, {R13});
+        return;
     }
+
+    Reg regT = Instruction32::getNextGPR(fields[REG_B]);
+
+    int16_t stackRTempOffs = -1 * WORD_LEN_BYTES;
+    insertInstruction(ST, {SP, R0, regT, stackRTempOffs}); // store above top of stack
+
+    Elf32_Addr poolConstantAddr = getPoolConstantAddr(PoolConstant{poolConstant.symbol});
+    int16_t offsetToPoolLiteral = getDisplacement(poolConstantAddr, locationCounter + WORD_LEN_BYTES);
+    insertInstruction(LD_PCREL, {regT, R0, offsetToPoolLiteral});
+
+    insertInstruction(type, {regT, fields[REG_B], fields[REG_C]}); // REG_A field is always free
+
+    // restore RTemp
+    insertInstruction(LD, {regT, SP, R0, stackRTempOffs});
 }
 
 void Assembler::insertIretIns() {
