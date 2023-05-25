@@ -1,12 +1,18 @@
 #pragma once
 
 #include <algorithm>
+
+#include <chrono>
+
+using namespace std::chrono;
+
 #include "../common/Elf32.hpp"
 #include "../common/Elf32File.hpp"
 #include "../common/Ins32.hpp"
 #include "Terminal.hpp"
 #include "Constants.hpp"
 #include "CPU.hpp"
+
 
 class Emulator {
 public:
@@ -39,6 +45,15 @@ private:
         return cpu.getCSRX(STATUS) & (1u << 2);
     }
 
+    void handleTerminal();
+
+    void writeToTerminal();
+
+    void handleInterrupts();
+
+    void handleTimer();
+
+    void resetTimer();
 
     Elf32File execFile;
 
@@ -54,13 +69,15 @@ private:
 
     bool terminalWritePending = false;
 
+    Elf32_Word timerMode = 0;
+
+    time_point<high_resolution_clock> period_start = high_resolution_clock::now();
+
+    time_point<high_resolution_clock> period_end;
+
     bool timerIntrPending = false;
 
     bool badInstrIntrPending = false;
 
-    void handleTerminal();
 
-    void writeToTerminal();
-
-    void handleInterrupts();
 };

@@ -335,7 +335,6 @@ void Assembler::insertFlowControlIns(yytokentype type, const PoolConstant &const
     insertInstruction(LD_PCREL, {R13, R0, offsetToPoolLiteral}); // load pool literal value
     insertInstruction(ST, {SP, R0, R13, stackJmpOffs}); // store above top of stack
 
-
     if (type == CALL) {
         // push pc of instruction after jump, before jump
         insertInstruction(LD_REG, {R13, PC, 3 * INSTRUCTION_LEN_BYTES}); // skip over three instructions

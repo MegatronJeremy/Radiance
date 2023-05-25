@@ -16,8 +16,6 @@ Emulator::Emulator(const string &inFile) {
     cpu.setGPRX(PC, START_PC);
     cpu.setGPRX(SP, START_SP);
 
-    storeWordToMem(TIM_CFG, START_TIM_CFG);
-
     // load program sections
     loadProgramData();
 }
@@ -53,10 +51,12 @@ void Emulator::run() {
 
         handleTerminal();
 
+        handleTimer();
+
         handleInterrupts();
     }
 
-    cout << "-----------------------------------------------------------------" << endl;
+    cout << endl << endl << "-----------------------------------------------------------------" << endl;
     cout << "Emulated processor executed halt instruction" << endl;
     cout << cpu << endl;
 }
@@ -64,6 +64,10 @@ void Emulator::run() {
 void Emulator::storeWordToMem(Elf32_Addr addr, Elf32_Word word) {
     if (addr >= TERM_OUT && addr < TERM_OUT + WORD_LEN_BYTES) {
         terminalWritePending = true;
+    }
+
+    if (addr >= TIM_CFG && addr < TIM_CFG + WORD_LEN_BYTES) {
+        timerMode = word;
     }
 
     *reinterpret_cast<Elf32_Word *>(memory + addr) = word;
@@ -286,4 +290,16 @@ void Emulator::writeToTerminal() {
     terminalWritePending = false;
 }
 
+void Emulator::handleTimer() {
+    // end from last period start
+    period_end = high_resolution_clock::now();
 
+    // Decrement time left
+    size_t timePassed = duration_cast<microseconds>(period_end - period_start).count();
+
+    if (timePassed >= TIMER_MODES[timerMode]) {
+        timerIntrPending = true;
+        // start new period and generate interrupt
+        period_start = high_resolution_clock::now();
+    }
+}

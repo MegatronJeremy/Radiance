@@ -16,6 +16,13 @@ constexpr Elf32_Addr TERM_IN = 0xFFFFFF04;
 
 constexpr Elf32_Addr TIM_CFG = 0xFFFFFF10;
 
+constexpr Elf32_Word NUM_TIM_MODES = 8;
+
+constexpr size_t TIMER_MODES[NUM_TIM_MODES] = { // in micros
+        500 * 1000, 1000 * 1000, 1500 * 1000, 2000 * 1000,
+        5000 * 1000, 10000 * 1000, 30000 * 1000, 60000 * 1000
+};
+
 constexpr Elf32_Word START_TIM_CFG = 0x0;
 
 constexpr Elf32_Addr START_PC = 0x40000000;

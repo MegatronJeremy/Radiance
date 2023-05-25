@@ -171,7 +171,7 @@ ostream &operator<<(ostream &os, Elf32File &file) {
         for (Elf32_Word i = 0; i < file.symbolTable.symbolNames.size(); i++) {
             os << i << ": " << file.symbolTable.symbolNames[i] << endl;
         }
-        cout << endl;
+        os << endl;
 
         os << "Relocation tables: " << endl;
         for (auto &it: file.relocationTables) {
@@ -287,7 +287,6 @@ void Elf32File::writeExecDataSections(fstream &file) {
         stringstream &s = dataSections[i];
 
         Elf32_Shdr &sh = sectionTable.get(i);
-        cout << sh << endl;
 
         Elf32_Phdr ph;
         ph.p_memsz = sh.sh_size;
@@ -357,11 +356,8 @@ void Elf32File::writeExecToOutputFile(const string &fileName) {
     // offset to program header
     elfHeader.e_phoff = file.tellp();
 
-    cout << elfHeader << endl;
-
     // write program section headers
     for (auto &ph: programTable.programDefinitions) {
-        cout << ph << endl;
         file.write(reinterpret_cast<char *>(&ph), sizeof(Elf32_Phdr));
     }
 
