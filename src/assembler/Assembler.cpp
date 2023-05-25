@@ -280,8 +280,8 @@ Elf32_Addr Assembler::getPoolConstantAddr(const PoolConstant &constant) {
     return sectionEnd;
 }
 
-void Assembler::insertFlowControlIns(yytokentype type, const PoolConstant &constant,
-                                     const vector<int16_t> &fields) {
+void Assembler::insertJumpIns(yytokentype type, const PoolConstant &constant,
+                              const vector<int16_t> &fields) {
     if (!constant.isNumeric) {
         // add symbol usage if in first pass
         addSymbolUsage(constant.symbol);
@@ -300,9 +300,9 @@ void Assembler::insertFlowControlIns(yytokentype type, const PoolConstant &const
 
             // BUT PADDING NEEDED TO KEEP THE CODE SIZE
             size_t pad;
-            if (type == CALL || type == BGT) pad = 6;
-            else if (type != JMP) pad = 5;
-            else pad = 4;
+            if (type == BGT) pad = 2;
+            else if (type != JMP) pad = 1;
+            else pad = 0;
 
             for (size_t i = 0; i < pad; i++) {
                 insertInstruction(NOP);
@@ -313,16 +313,50 @@ void Assembler::insertFlowControlIns(yytokentype type, const PoolConstant &const
 
     // code blocks checking jump condition using negation
     if (type == BEQ) {
-        insertInstruction(BNE, {PC, fields[REG_B], fields[REG_C], 5 * INSTRUCTION_LEN_BYTES}); // skip over code block
+        insertInstruction(BNE, {PC, fields[REG_B], fields[REG_C], 1 * INSTRUCTION_LEN_BYTES}); // skip over code block
     } else if (type == BNE) {
-        insertInstruction(BEQ, {PC, fields[REG_B], fields[REG_C], 5 * INSTRUCTION_LEN_BYTES});
+        insertInstruction(BEQ, {PC, fields[REG_B], fields[REG_C], 1 * INSTRUCTION_LEN_BYTES});
     } else if (type == BGT) {
         // check for two conditions to fulfill negation
-        insertInstruction(BGT, {PC, fields[REG_C], fields[REG_B], 6 * INSTRUCTION_LEN_BYTES}); // invert registers
-        insertInstruction(BEQ, {PC, fields[REG_B], fields[REG_C], 5 * INSTRUCTION_LEN_BYTES}); // skip block
+        insertInstruction(BGT, {PC, fields[REG_C], fields[REG_B], 2 * INSTRUCTION_LEN_BYTES}); // invert registers
+        insertInstruction(BEQ, {PC, fields[REG_B], fields[REG_C], 1 * INSTRUCTION_LEN_BYTES}); // skip block
     }
 
-    // insert long jump
+    Elf32_Addr poolConstantAddr = getPoolConstantAddr(constant);
+    int16_t offsetToPoolLiteral = getDisplacement(poolConstantAddr,
+                                                  locationCounter + WORD_LEN_BYTES); // one forward
+
+    // pseudo-jump using load
+    insertInstruction(LD_PCREL, {PC, R0, offsetToPoolLiteral});
+}
+
+void Assembler::insertCallIns(const PoolConstant &constant) {
+    if (!constant.isNumeric) {
+        // add symbol usage if in first pass
+        addSymbolUsage(constant.symbol);
+    }
+
+    if (constant.isNumeric && positiveValueFitsInDisp(constant.number)) {
+        insertInstruction(CALL, {R0, R0, R0, static_cast<int16_t>(constant.number)});
+        return;
+    }
+
+    if (pass == 2 && !constant.isNumeric) {
+        Elf32_Sym *sd = eFile.symbolTable.get(constant.symbol);
+        if (sd->st_shndx == currentSection) { // no need for literal poool, use pc relative addressing
+            int16_t disp = getDisplacement(sd->st_value, locationCounter + INSTRUCTION_LEN_BYTES);
+            insertInstruction(CALL, {PC, R0, R0, disp});
+
+            size_t pad = 6;
+            // BUT PADDING NEEDED TO KEEP THE SAME CODE SIZE
+            for (size_t i = 0; i < pad; i++) {
+                insertInstruction(NOP);
+            }
+            return;
+        }
+    }
+
+    // insert long call
     int16_t stackR13Offs = -2 * WORD_LEN_BYTES;
     int16_t stackJmpOffs = -3 * WORD_LEN_BYTES;
 
@@ -335,13 +369,11 @@ void Assembler::insertFlowControlIns(yytokentype type, const PoolConstant &const
     insertInstruction(LD_PCREL, {R13, R0, offsetToPoolLiteral}); // load pool literal value
     insertInstruction(ST, {SP, R0, R13, stackJmpOffs}); // store above top of stack
 
-    if (type == CALL) {
-        // push pc of instruction after jump, before jump
-        insertInstruction(LD_REG, {R13, PC, 3 * INSTRUCTION_LEN_BYTES}); // skip over three instructions
-        insertInstruction(PUSH, {R13}); // push return PC on reserved stack location
-        stackJmpOffs += WORD_LEN_BYTES; // because of push
-        stackR13Offs += WORD_LEN_BYTES;
-    }
+    // push pc of instruction after jump, before jump
+    insertInstruction(LD_REG, {R13, PC, 3 * INSTRUCTION_LEN_BYTES}); // skip over three instructions
+    insertInstruction(PUSH, {R13}); // push return PC on reserved stack location
+    stackJmpOffs += WORD_LEN_BYTES; // because of push
+    stackR13Offs += WORD_LEN_BYTES;
 
     // restore R13
     insertInstruction(LD, {R13, SP, R0, stackR13Offs});

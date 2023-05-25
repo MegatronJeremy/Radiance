@@ -37,8 +37,10 @@ public:
 
     void insertInstruction(yytokentype token, const vector<int16_t> &fields = {});
 
-    void insertFlowControlIns(yytokentype type, const PoolConstant &constant,
-                              const vector<int16_t> &fields = {R0, R0, R0});
+    void insertJumpIns(yytokentype type, const PoolConstant &constant,
+                       const vector<int16_t> &fields = {R0, R0, R0});
+
+    void insertCallIns(const PoolConstant &constant);
 
 
     void insertLoadIns(yytokentype type, const PoolConstant &poolConstant, vector<int16_t> &&fields);

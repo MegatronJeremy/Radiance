@@ -84,17 +84,17 @@ instruction:
       HALT                                  { as->insertInstruction(HALT); }
     | INT                                   { as->insertInstruction(INT); }
     | IRET                                  { as->insertIretIns(); }
-    | CALL LITERAL                          { as->insertFlowControlIns(CALL, $2); }
-    | CALL SYMBOL                           { as->insertFlowControlIns(CALL, $2); free($2); }
+    | CALL LITERAL                          { as->insertCallIns($2); }
+    | CALL SYMBOL                           { as->insertCallIns($2); free($2); }
     | RET                                   { as->insertInstruction(POP, {PC}); }
-    | JMP LITERAL                           { as->insertFlowControlIns(JMP, $2); }
-    | JMP SYMBOL                            { as->insertFlowControlIns(JMP, $2); free($2); }
-    | BEQ GPRX ',' GPRX ',' LITERAL         { as->insertFlowControlIns(BEQ, $6, {R0, $2, $4}); }
-    | BEQ GPRX ',' GPRX ',' SYMBOL          { as->insertFlowControlIns(BEQ, $6, {R0, $2, $4}); free($6); }
-    | BNE GPRX ',' GPRX ',' LITERAL         { as->insertFlowControlIns(BNE, $6, {R0, $2, $4}); }
-    | BNE GPRX ',' GPRX ',' SYMBOL          { as->insertFlowControlIns(BNE, $6, {R0, $2, $4}); free($6); }
-    | BGT GPRX ',' GPRX ',' LITERAL         { as->insertFlowControlIns(BGT, $6, {R0, $2, $4}); }
-    | BGT GPRX ',' GPRX ',' SYMBOL          { as->insertFlowControlIns(BGT, $6, {R0, $2, $4}); free($6); }
+    | JMP LITERAL                           { as->insertJumpIns(JMP, $2); }
+    | JMP SYMBOL                            { as->insertJumpIns(JMP, $2); free($2); }
+    | BEQ GPRX ',' GPRX ',' LITERAL         { as->insertJumpIns(BEQ, $6, {R0, $2, $4}); }
+    | BEQ GPRX ',' GPRX ',' SYMBOL          { as->insertJumpIns(BEQ, $6, {R0, $2, $4}); free($6); }
+    | BNE GPRX ',' GPRX ',' LITERAL         { as->insertJumpIns(BNE, $6, {R0, $2, $4}); }
+    | BNE GPRX ',' GPRX ',' SYMBOL          { as->insertJumpIns(BNE, $6, {R0, $2, $4}); free($6); }
+    | BGT GPRX ',' GPRX ',' LITERAL         { as->insertJumpIns(BGT, $6, {R0, $2, $4}); }
+    | BGT GPRX ',' GPRX ',' SYMBOL          { as->insertJumpIns(BGT, $6, {R0, $2, $4}); free($6); }
     | PUSH GPRX                             { as->insertInstruction(PUSH, {$2}); }
     | POP GPRX                              { as->insertInstruction(POP, {$2}); }
     | XCHG GPRX ',' GPRX                    { as->insertInstruction(XCHG, {$4, $2}); }
