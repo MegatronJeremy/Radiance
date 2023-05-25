@@ -1,5 +1,12 @@
 # file: handler.s
 .equ term_out, 0xFFFFFF00
+.equ five, 7 - (six - three - one)
+.equ six, three + three
+.equ four, one + three
+.equ three, two + one
+.equ two, one + one
+.equ one, 1
+.equ three, two + 1
 .equ term_in, 0xFFFFFF04
 .equ ascii_code, 84 # ascii(’T’)
 .extern my_counter

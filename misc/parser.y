@@ -37,11 +37,8 @@
 %token POP_CS
 %token LD_REG LD_PCREL LD_IMM
 
-%type <ival> ival_expression
-
 %left '+' '-'
 %nonassoc UMINUS
-
 
 %start program
 
@@ -76,7 +73,7 @@ directive:
     | WORD initializer_list
     | SKIP LITERAL                   { as->zeroInitSpace($2); }
     | ASCII STRING                   { as->initAscii($2); free($2); }
-    | EQU SYMBOL ',' ival_expression { as->insertAbsoluteSymbol($2, $4); free($2); }
+    | EQU SYMBOL ',' ival_expression { as->closeTNSEntry($2); free($2); }
     | END                            { as->endAssembly(); YYACCEPT; }
     ;
 
@@ -143,17 +140,15 @@ extern_symbol_list: // .extern symbols are ignored, all undefined symbols are ex
     ;
 
 ival_expression:
-      LITERAL     /* default action { $$ = $1;}  */
-    | SYMBOL  { cout << $1 << endl; free($1); } // TODO
-    | ival_expression '+' ival_expression { $$ = $1 + $3; }
-    | ival_expression '-' ival_expression { $$ = $1 - $3; }
-    | '-' ival_expression %prec UMINUS    { $$ = -$2; }
-    | '(' ival_expression ')'             { $$ = $2;  }
+      LITERAL { as->insertTNS($1); }
+    | SYMBOL  { as->insertTNS($1); free($1); }
+    | ival_expression '+' ival_expression { as->insertTNS('+'); }
+    | ival_expression '-' ival_expression { as->insertTNS('-'); }
+    | '-' ival_expression %prec UMINUS    { as->insertTNS('-'); }
+    | '(' ival_expression ')'
     ;
 
 %%
-
-
 
 void yyerror(const char *s) {
   cout << "Parse error on line " << lineNum << "!  Message: " << s << endl;

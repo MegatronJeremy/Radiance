@@ -8,6 +8,7 @@
 #include "../common/Ins32.hpp"
 #include "../../misc/parser.hpp"
 #include "../common/Elf32File.hpp"
+#include "TNSEntry.hpp"
 
 class Assembler {
 public:
@@ -55,9 +56,20 @@ public:
 
     void initCurrentSectionPoolConstants();
 
+    void closeTNSEntry(const string &symbol);
+
+    void insertTNS(char c);
+
+    void insertTNS(const string &symbol);
+
+    void insertTNS(Elf32_Word literal);
+
+    void resolveTNS();
+
     bool nextPass();
 
     static void incLocationCounter(Elf32_Word bytes = 4);
+
 
 private:
     Elf32_Ehdr elfHeader;
@@ -67,6 +79,10 @@ private:
 
     // one for each section
     vector<LiteralTable> literalTable;
+
+    // TNS values
+    unordered_map<string, TNSEntry> TNS;
+    TNSEntry currentTNSEntry{};
 
     uint32_t currentSection = SHN_UNDEF;
     static Elf32_Addr locationCounter;

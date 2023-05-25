@@ -5,6 +5,7 @@
 #include <cstring>
 #include <queue>
 #include <utility>
+#include <stack>
 
 Elf32_Addr Assembler::locationCounter = 0;
 
@@ -157,9 +158,15 @@ bool Assembler::nextPass() {
     if (pass == 2)
         return false;
 
+
     currentSection = SHN_UNDEF;
     locationCounter = 0;
+
+    // resolve TNS before second pass
+    resolveTNS();
+
     pass = pass + 1;
+
     return true;
 }
 
@@ -454,4 +461,113 @@ void Assembler::insertIretIns() {
     insertInstruction(POP, {PC});
     insertInstruction(POP, {STATUS});
 }
+
+void Assembler::closeTNSEntry(const string &symbol) {
+    TNS[symbol] = currentTNSEntry;
+    currentTNSEntry = {};
+}
+
+void Assembler::insertTNS(char c) {
+    currentTNSEntry.insertValue(c);
+}
+
+void Assembler::insertTNS(const string &symbol) {
+    currentTNSEntry.insertValue(symbol);
+}
+
+void Assembler::insertTNS(Elf32_Word literal) {
+    currentTNSEntry.insertValue(literal);
+}
+
+void Assembler::resolveTNS() {
+    Elf32_Word resolved;
+    Elf32_Word resolvedTotal = 0;
+
+    do {
+        resolved = 0;
+
+        for (auto &it: TNS) {
+            auto &tnsEntry = it.second;
+            if (tnsEntry.resolved) {
+                continue;
+            }
+
+            Elf32_Word a, b;
+            Elf32_Word res;
+
+            Elf32_Sym *sd;
+
+            char op;
+
+
+            stack<Elf32_Word> s;
+
+            bool valid = true;
+
+            vector<size_t> indices = {0, 0, 0};
+
+            for (auto &selector: tnsEntry.selector) {
+                switch (selector) {
+                    case OP:
+                        b = s.top();
+                        s.pop();
+
+                        op = tnsEntry.operators[indices[OP]];
+
+                        if (!s.empty()) {
+                            a = s.top();
+                            s.pop();
+
+                            if (op == '+') {
+                                res = a + b;
+                            } else {
+                                res = a - b;
+                            }
+                        } else {
+                            if (op == '-') {
+                                res = -b;
+                            }
+                        }
+
+                        s.push(res);
+
+                        indices[OP]++;
+                        break;
+                    case NUM:
+                        s.push(tnsEntry.nums[indices[NUM]]);
+
+                        indices[NUM]++;
+                        break;
+                    case SYM:
+                        sd = eFile.symbolTable.get(tnsEntry.syms[indices[SYM]]);
+
+                        if (sd == nullptr) {
+                            valid = false;
+                        } else {
+                            s.push(sd->st_value);
+                            indices[SYM]++;
+                        }
+                        break;
+                }
+                if (!valid)
+                    break;
+
+            }
+
+            if (valid) {
+                resolved++;
+                resolvedTotal++;
+                tnsEntry.resolved = true;
+                insertAbsoluteSymbol(it.first, s.top());
+            }
+        }
+    } while (resolved != 0);
+
+    if (resolvedTotal != TNS.size()) {
+        throw runtime_error("Assembler error: cannot resolve all EQU directives");
+    }
+
+}
+
+
 

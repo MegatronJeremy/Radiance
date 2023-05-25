@@ -59,20 +59,18 @@ int main(int argc, char **argv) {
     // Set lex to read from it instead of defaulting to STDIN:
     yyin = myfile;
 
-    while (as->nextPass()) {
-        // fseek to start of file
-        fseek(myfile, 0, SEEK_SET);
+    try {
+        while (as->nextPass()) {
+            // fseek to start of file
+            fseek(myfile, 0, SEEK_SET);
 
-        // Reset line num
-        lineNum = 1;
+            // Reset line num
+            lineNum = 1;
 
-        // Parse through the input:
-        try {
+            // Parse through the input:
             yyparse();
         }
-        catch (const exception &e) {
-            yyerror(e.what());
-            break;
-        }
+    } catch (const exception &e) {
+        cerr << e.what() << endl;
     }
 }
