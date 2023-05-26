@@ -1,4 +1,5 @@
 # file: handler.s
+# .global extern_const
 .equ term_out, 0xFFFFFF00
 .equ five, 7 - (six - three - one)
 .equ six, three + three
@@ -6,10 +7,15 @@
 .equ three, two + one
 .equ two, one + one
 .equ one, 1
+.equ handler_five, handler + five
+.equ handler_seven, handler_five + two
+.equ handler_const, handler_end - handler
+.equ handler_const_offs, handler_end - handler + handler
 .equ three, two + 1
 .equ term_in, 0xFFFFFF04
 .equ ascii_code, 84 # ascii(’T’)
-.extern my_counter
+.equ extern_const, main + 74
+.extern main
 .global handler
 .section my_code_handler
 .skip 8
@@ -20,10 +26,12 @@ handler:
     halt
     push %r2
     csrrd %cause, %r1
+handler_end:
     int
 .section text
     .ascii "Q PREDICTED THIS"
     ld $2, %r2
+    ld extern_const, %r3
     beq %r1, %r2, my_isr_timer
     .word handler
     ld $3, %r2

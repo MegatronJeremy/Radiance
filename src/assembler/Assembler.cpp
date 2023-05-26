@@ -88,7 +88,7 @@ void Assembler::insertGlobalSymbol(const string &symbol) {
 }
 
 void Assembler::addSymbolUsage(const string &symbol) {
-    if (pass == 2 || currentSection == SHN_UNDEF || eFile.symbolTable.get(symbol) != nullptr) {
+    if (pass == 2 || eFile.symbolTable.get(symbol) != nullptr) {
         return;
     }
 
@@ -158,12 +158,12 @@ bool Assembler::nextPass() {
     if (pass == 2)
         return false;
 
-
-    currentSection = SHN_UNDEF;
-    locationCounter = 0;
-
     // resolve TNS before second pass
     resolveTNS();
+
+    // reset location counter here
+    currentSection = SHN_UNDEF;
+    locationCounter = 0;
 
     pass = pass + 1;
 
@@ -213,14 +213,19 @@ void Assembler::incLocationCounter(Elf32_Word bytes) {
 Elf32_Word Assembler::generateAbsoluteRelocation(const string &symbol) {
     // for generating R_32S
     Elf32_Sym *sd = eFile.symbolTable.get(symbol);
-    Elf32_Rela rd;
 
+    Elf32_Rela rd;
     Elf32_Word relocationValue = 0;
 
     if (sd->st_shndx == SHN_ABS) {
-        // already absolute, no need for relocation
-        relocationValue = sd->st_value;
-        return relocationValue;
+        if (equExtRela.find(symbol) != equExtRela.end()) {
+            // EQU symbol with external binding
+            rd = equExtRela[symbol];
+        } else {
+            // fully absolute, no need for relocation
+            relocationValue = sd->st_value;
+            return relocationValue;
+        }
     } else if (sd->st_shndx != SHN_UNDEF && ELF32_ST_BIND(sd->st_info) == STB_LOCAL) {
         // if symbol is local use the section index
         rd.r_addend = static_cast<Elf32_Sword>(sd->st_value);
@@ -492,15 +497,19 @@ void Assembler::resolveTNS() {
                 continue;
             }
 
+            unordered_map<Elf32_Section, Elf32_Sword> clsNdx;
+            unordered_map<Elf32_Section, Elf32_Sym *> boundSym;
             Elf32_Word a, b;
             Elf32_Word res;
 
-            Elf32_Sym *sd;
+            Elf32_Sym *sd, *symB;
+
+            int signB;
 
             char op;
 
-
             stack<Elf32_Word> s;
+            stack<Elf32_Sym *> symS;
 
             bool valid = true;
 
@@ -509,32 +518,47 @@ void Assembler::resolveTNS() {
             for (auto &selector: tnsEntry.selector) {
                 switch (selector) {
                     case OP:
+                        signB = 1;
+
                         b = s.top();
+                        symB = symS.top();
                         s.pop();
+                        symS.pop();
 
                         op = tnsEntry.operators[indices[OP]];
 
                         if (!s.empty()) {
                             a = s.top();
                             s.pop();
+                            symS.pop();
+
 
                             if (op == '+') {
                                 res = a + b;
                             } else {
                                 res = a - b;
+                                signB = -1;
                             }
                         } else {
                             if (op == '-') {
                                 res = -b;
+                                signB = -1;
                             }
                         }
 
+                        if (symB != nullptr && symB->st_shndx != SHN_ABS) {
+                            clsNdx[symB->st_shndx] += signB;
+                            boundSym[symB->st_shndx] = symB;
+                        }
+
                         s.push(res);
+                        symS.push(nullptr);
 
                         indices[OP]++;
                         break;
                     case NUM:
                         s.push(tnsEntry.nums[indices[NUM]]);
+                        symS.push(nullptr);
 
                         indices[NUM]++;
                         break;
@@ -544,7 +568,13 @@ void Assembler::resolveTNS() {
                         if (sd == nullptr) {
                             valid = false;
                         } else {
+                            // if first value add to classification table (with positive sign)
+                            if (s.empty() && sd->st_shndx != SHN_ABS) {
+                                clsNdx[sd->st_shndx]++;
+                                boundSym[sd->st_shndx] = sd;
+                            }
                             s.push(sd->st_value);
+                            symS.push(sd);
                             indices[SYM]++;
                         }
                         break;
@@ -555,10 +585,45 @@ void Assembler::resolveTNS() {
             }
 
             if (valid) {
+                Elf32_Section sndx = SHN_ABS;
+                Elf32_Sym *bSym = nullptr;
+                for (auto &cls: clsNdx) {
+                    if (cls.second != 0 && sndx == SHN_ABS) {
+                        sndx = cls.first;
+                        bSym = boundSym[cls.first];
+                    } else if (cls.second != 0) {
+                        throw runtime_error("Assembler error: invalid EQU directive, bad index classification");
+                    }
+                }
+
+                Elf32_Sym *targetSym = eFile.symbolTable.get(it.first);
+                // binding to external symbol, and exporting as global
+                if (bSym != nullptr && targetSym != nullptr && bSym->st_shndx == SHN_UNDEF &&
+                    ELF32_ST_BIND(targetSym->st_info) == STB_GLOBAL) {
+                    throw runtime_error(
+                            "Assembler error: invalid EQU directive, "
+                            "cannot bind to externally defined symbol while exporting target symbol as global");
+                }
+
                 resolved++;
                 resolvedTotal++;
                 tnsEntry.resolved = true;
-                insertAbsoluteSymbol(it.first, s.top());
+
+                if (sndx == SHN_ABS) {
+                    insertAbsoluteSymbol(it.first, s.top());
+                } else if (sndx != SHN_UNDEF) {
+                    currentSection = sndx; // set current section to index of target symbol
+                    locationCounter = s.top(); // set location counter as the result value
+                    insertLocalSymbol(it.first);
+                } else {
+                    // insert relocation value only for symbol (in a specially defined table)
+                    Elf32_Rela rd;
+                    rd.r_addend = static_cast<Elf32_Sword>(s.top()); // the constant addend
+                    rd.r_info = ELF32_R_INFO(bSym->st_name, R_32S);
+                    rd.r_offset = 0; // to be configured based on usage
+                    equExtRela[it.first] = rd;
+                    insertAbsoluteSymbol(it.first, 0); // insert as local symbol only
+                }
             }
         }
     } while (resolved != 0);
@@ -566,7 +631,6 @@ void Assembler::resolveTNS() {
     if (resolvedTotal != TNS.size()) {
         throw runtime_error("Assembler error: cannot resolve all EQU directives");
     }
-
 }
 
 

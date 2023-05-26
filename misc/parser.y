@@ -134,9 +134,9 @@ global_symbol_list:
     | global_symbol_list ',' SYMBOL { as->insertGlobalSymbol($3); free($3); }
     ;
 
-extern_symbol_list: // .extern symbols are ignored, all undefined symbols are external
-      SYMBOL                        { free($1); }
-    | extern_symbol_list ',' SYMBOL { free($3); }
+extern_symbol_list:
+      SYMBOL                        { as->addSymbolUsage($1); free($1); }
+    | extern_symbol_list ',' SYMBOL { as->addSymbolUsage($3); free($3); }
     ;
 
 ival_expression:

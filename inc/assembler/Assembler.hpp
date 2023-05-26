@@ -72,7 +72,7 @@ public:
 
 
 private:
-    Elf32_Ehdr elfHeader;
+    Elf32_Ehdr elfHeader{};
 
     // output file wrapper
     Elf32File eFile;
@@ -83,6 +83,9 @@ private:
     // TNS values
     unordered_map<string, TNSEntry> TNS;
     TNSEntry currentTNSEntry{};
+
+    // EQU entry relocation value for external symbol
+    unordered_map<string, Elf32_Rela> equExtRela;
 
     uint32_t currentSection = SHN_UNDEF;
     static Elf32_Addr locationCounter;

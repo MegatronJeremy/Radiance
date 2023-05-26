@@ -3,6 +3,7 @@
 .equ init_sp, 0xFFFFFF00
 .global my_data
 .global label
+.global end
 .section text
 	ld $0x20, %r1
 	ld $0x30, %r2
@@ -13,9 +14,11 @@ label:
 	sub %r3, %r1
 	add %r3, %r4
 	call continue
-	jmp label
+	jmp out
 	halt
 	.skip 10
 my_data:
     .word 5
+end:
+	halt
 .end

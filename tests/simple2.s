@@ -1,9 +1,10 @@
 .global continue
+.global out
 .section text2
 continue:
     st %r1, my_data
-	beq %r0, %r1, end
+	bgt %r0, %r1, end
 	ret
-end:
-	halt
+out:
+    jmp label
 .end

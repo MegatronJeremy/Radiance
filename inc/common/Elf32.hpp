@@ -61,10 +61,10 @@ struct Elf32_Ehdr {
 /* Symbol table entry.  */
 
 struct Elf32_Sym {
-    Elf32_Word st_name{};        /* Symbol name (string tbl index) */
-    Elf32_Addr st_value{};        /* Symbol value */
-    unsigned char st_info{};        /* Symbol type and binding */
-    Elf32_Section st_shndx{};        /* Section index */
+    Elf32_Word st_name = 0;        /* Symbol name (string tbl index) */
+    Elf32_Addr st_value = 0;        /* Symbol value */
+    unsigned char st_info = 0;        /* Symbol type and binding */
+    Elf32_Section st_shndx = 0;        /* Section index */
 
     friend ostream &operator<<(ostream &os, const Elf32_Sym &sym) {
         os << "st_name: " << sym.st_name << " st_value: " << sym.st_value << " st_info: " << sym.st_info
@@ -90,6 +90,12 @@ struct Elf32_Sym {
 #define ELF32_ST_INFO(bind, type)    (((bind) << 4) + ((type) & 0xf))
 
 
+/* How to extract and insert information held in the r_info field.  */
+
+#define ELF32_R_SYM(val)        ((val) >> 8)
+#define ELF32_R_TYPE(val)        ((val) & 0xff)
+#define ELF32_R_INFO(sym, type)        (((sym) << 8) + ((type) & 0xff))
+
 /* Relocation table entry with addend (in section of type SHT_RELA).  */
 
 struct Elf32_Rela {
@@ -98,7 +104,9 @@ struct Elf32_Rela {
     Elf32_Sword r_addend{};        /* Addend */
 
     friend ostream &operator<<(ostream &os, const Elf32_Rela &rela) {
-        os << "r_offset: " << rela.r_offset << " r_info: " << rela.r_info << " r_addend: " << rela.r_addend;
+        os << "r_offset: " << rela.r_offset << " r_sym: " << (Elf32_Word) ELF32_R_SYM(rela.r_info) << " r_type: "
+           << (Elf32_Word) ELF32_R_TYPE(rela.r_info) << " r_addend: "
+           << rela.r_addend << " ";
         return os;
     }
 };
@@ -109,12 +117,6 @@ struct Elf32_Rela {
 #define R_PC32        2    /* PC relative 32 bit signed */
 #define R_32        10    /* Direct 32 bit zero extended */
 #define R_32S        11    /* Direct 32 bit sign extended */
-
-/* How to extract and insert information held in the r_info field.  */
-
-#define ELF32_R_SYM(val)        ((val) >> 8)
-#define ELF32_R_TYPE(val)        ((val) & 0xff)
-#define ELF32_R_INFO(sym, type)        (((sym) << 8) + ((type) & 0xff))
 
 
 /* Section header.  */

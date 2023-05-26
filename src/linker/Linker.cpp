@@ -212,7 +212,7 @@ void Linker::generateRelocations(Elf32File &eFile) {
 
             Elf32_Section shndx = outFile.sectionTable.getSectionIndex(secName);
 
-            outFile.relocationTables[shndx].insertRelocationEntry(rel);
+            outFile.relocationTables[shndx].insertRelocationEntry(outRela);
         }
     }
 }
