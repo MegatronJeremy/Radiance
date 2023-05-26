@@ -119,7 +119,7 @@ $(BUILD)/src/common/%.o: $(COM_CODE)/%.cpp
 
 clean:
 	rm -rf out
-	rm -rf $(TEST_DIR)/*.o
+	rm -rf $(TEST_DIR)/*.o $(TEST_DIR)/*.out $(TEST_DIR)/*.hex
 
 
 -include $(AS_DEP) $(RO_DEP) $(LD_DEP) $(EM_DEP) $(COM_DEP) $(MSC_DEP)
