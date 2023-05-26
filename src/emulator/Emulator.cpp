@@ -5,7 +5,7 @@
 Emulator::Emulator(const string &inFile) {
     memory = static_cast<BYTE *>(mmap(nullptr, MEMORY_SIZE_BYTES,
                                       PROT_READ | PROT_WRITE,
-                                      MAP_ANONYMOUS | MAP_PRIVATE,
+                                      MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
                                       -1, 0));
     execFile.loadFromInputFile(inFile);
 
