@@ -1,18 +1,18 @@
-#include "../../inc/emulator/Terminal.hpp"
+#include "../../inc/emulator/NonBufferedTerminal.hpp"
 
 #include <unistd.h>
 #include <fcntl.h>
 
 // RAII object
-Terminal::Terminal() {
+NonBufferedTerminal::NonBufferedTerminal() {
     disableInputBuffering();
 }
 
-Terminal::~Terminal() {
+NonBufferedTerminal::~NonBufferedTerminal() {
     restoreInputBuffer();
 }
 
-void Terminal::disableInputBuffering() {
+void NonBufferedTerminal::disableInputBuffering() {
     // get original settings
     tcgetattr(STDIN_FILENO, &original_settings);
 
@@ -25,7 +25,7 @@ void Terminal::disableInputBuffering() {
     fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
 }
 
-void Terminal::restoreInputBuffer() {
+void NonBufferedTerminal::restoreInputBuffer() {
     tcsetattr(STDIN_FILENO, TCSANOW, &original_settings);
 }
 

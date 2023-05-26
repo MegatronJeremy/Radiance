@@ -39,13 +39,3 @@ const Elf32_Shdr &SectionTable::get(Elf32_Section s) const {
 Elf32_Section SectionTable::getSectionIndex(const string &s) {
     return sectionIndices[s];
 }
-
-ostream &operator<<(ostream &os, const SectionTable &st) {
-    os << "Section header table: " << endl;
-    int i = 0;
-    for (const Elf32_Shdr &sd: st.sectionDefinitions) {
-        os << sd << ": " << i++ << endl;
-    }
-    return os;
-}
-

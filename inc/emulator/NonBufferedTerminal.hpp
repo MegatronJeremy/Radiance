@@ -2,11 +2,11 @@
 
 #include <termios.h>
 
-class Terminal {
+class NonBufferedTerminal {
 public:
-    Terminal();
+    NonBufferedTerminal();
 
-    ~Terminal();
+    ~NonBufferedTerminal();
 
 private:
     void disableInputBuffering();

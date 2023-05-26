@@ -1,12 +1,12 @@
 %{
   #include <iostream>
-  #include <cstdint>
+#include <memory>
   #include "../inc/assembler/Assembler.hpp"
   using namespace std;
 
   extern int yylex();
   extern int lineNum;
-  extern Assembler *as;
+  extern unique_ptr<Assembler> as;
 
   void yyerror(const char*);
 %}

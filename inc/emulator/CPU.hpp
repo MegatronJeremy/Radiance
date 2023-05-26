@@ -3,6 +3,7 @@
 #include <ostream>
 #include <iomanip>
 #include "../common/Elf32.hpp"
+#include "../common/Ins32.hpp"
 #include "Constants.hpp"
 
 struct CPU {
@@ -27,17 +28,7 @@ public:
         CSRX[reg] = val;
     }
 
-    friend ostream &operator<<(ostream &os, const CPU &cpu) {
-        cout << "Emulated processor state:";
-        for (size_t i = 0; i < NUM_GPRX_REGS; i++) {
-            if (i % 4 == 0) {
-                cout << endl;
-            }
-            cout << setw(3) << setfill(' ') << ("r" + to_string(i)) << "=0x" << setw(8) << setfill('0') << hex
-                 << cpu.GPRX[i] << "\t";
-        }
-        return os;
-    }
+    friend ostream &operator<<(ostream &os, const CPU &cpu);
 
 private:
     Elf32_Word GPRX[NUM_GPRX_REGS]{};

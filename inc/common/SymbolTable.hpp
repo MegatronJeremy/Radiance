@@ -17,8 +17,6 @@ struct SymbolTable {
 
     Elf32_Sym *insertSymbolDefinition(Elf32_Sym &sd, const string &name);
 
-    friend ostream &operator<<(ostream &os, const SymbolTable &);
-
     // strtab
     unordered_map<string, Elf32_Word> symbolMappings;
 

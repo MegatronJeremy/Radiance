@@ -255,7 +255,7 @@ void Assembler::zeroInitSpace(Elf32_Word bytes) {
     }
 
     char buff[bytes];
-    memset(buff, 0xbb, sizeof(buff));
+    memset(buff, 0x0, sizeof(buff));
     eFile.dataSections[currentSection].write(buff, bytes);
 }
 
@@ -631,6 +631,10 @@ void Assembler::resolveTNS() {
     if (resolvedTotal != TNS.size()) {
         throw runtime_error("Assembler error: cannot resolve all EQU directives");
     }
+}
+
+string Assembler::getSymbolName(Elf32_Word ndx) {
+    return eFile.symbolTable.symbolNames[ndx];
 }
 
 

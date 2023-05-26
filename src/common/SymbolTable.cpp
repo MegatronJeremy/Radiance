@@ -25,11 +25,3 @@ Elf32_Sym *SymbolTable::get(const string &s) {
     return &symbolDefinitions[symbolMappings[s]];
 }
 
-ostream &operator<<(ostream &os, const SymbolTable &st) {
-    os << "Symbol table: " << endl;
-    for (const Elf32_Sym &sd: st.symbolDefinitions) {
-        os << sd << endl;
-    }
-    return os;
-}
-

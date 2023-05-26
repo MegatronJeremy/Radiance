@@ -30,7 +30,7 @@ void Emulator::loadProgramData() {
 }
 
 void Emulator::run() {
-    Terminal terminal{}; // init terminal
+    NonBufferedTerminal terminal{}; // init terminal
     running = true;
 
     while (running) {
@@ -265,11 +265,20 @@ void Emulator::handleInterrupts() {
         return;
     }
 
+    // setup interrupt routine
     push(cpu.getCSRX(STATUS));
     push(cpu.getGPRX(PC));
     cpu.setCSRX(CAUSE, cause);
     cpu.setCSRX(STATUS, cpu.getCSRX(STATUS) & (~0x1));
     cpu.setGPRX(PC, cpu.getCSRX(HANDLER));
+}
+
+void Emulator::writeToTerminal() {
+    Elf32_Word ch = loadWordFromMem(TERM_OUT);
+
+    putchar(static_cast<int>(ch));
+
+    terminalWritePending = false;
 }
 
 void Emulator::handleTerminal() {
@@ -280,14 +289,6 @@ void Emulator::handleTerminal() {
         storeWordToMem(TERM_IN, ch);
         terminalIntrPending = true;
     }
-}
-
-void Emulator::writeToTerminal() {
-    Elf32_Word ch = loadWordFromMem(TERM_OUT);
-
-    putchar(static_cast<int>(ch));
-
-    terminalWritePending = false;
 }
 
 void Emulator::handleTimer() {

@@ -9,7 +9,7 @@ using namespace std::chrono;
 #include "../common/Elf32.hpp"
 #include "../common/Elf32File.hpp"
 #include "../common/Ins32.hpp"
-#include "Terminal.hpp"
+#include "NonBufferedTerminal.hpp"
 #include "Constants.hpp"
 #include "CPU.hpp"
 
@@ -45,15 +45,13 @@ private:
         return cpu.getCSRX(STATUS) & (1u << 2);
     }
 
-    void handleTerminal();
-
     void writeToTerminal();
+
+    void handleTerminal();
 
     void handleInterrupts();
 
     void handleTimer();
-
-    void resetTimer();
 
     Elf32File execFile;
 

@@ -4,7 +4,6 @@
 #include <memory>
 #include <getopt.h>
 
-
 using namespace std;
 
 unique_ptr<Assembler> as;

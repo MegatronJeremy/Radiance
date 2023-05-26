@@ -7,9 +7,9 @@
 using namespace std;
 
 struct RelocationTable {
-    void insertRelocationEntry(Elf32_Rela rd);
-
-    friend ostream &operator<<(ostream &os, const RelocationTable &rt);
+    void insertRelocationEntry(Elf32_Rela rd) {
+        relocationEntries.emplace_back(rd);
+    }
 
     vector<Elf32_Rela> relocationEntries;
 };

@@ -24,8 +24,6 @@ struct SectionTable {
 
     void closeLastSection(Elf32_Addr endLocation);
 
-    friend ostream &operator<<(ostream &os, const SectionTable &st);
-
     vector<Elf32_Shdr> sectionDefinitions;
 
 private:

@@ -21,7 +21,5 @@ struct ProgramTable {
         programDefinitions.emplace_back(ph);
     }
 
-    friend ostream &operator<<(ostream &os, const ProgramTable &pt);
-
     vector<Elf32_Phdr> programDefinitions;
 };

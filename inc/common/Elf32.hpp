@@ -3,7 +3,6 @@
 /* Standard ELF types.  */
 
 #include <cstdint>
-#include <iostream>
 
 using namespace std;
 
@@ -33,18 +32,10 @@ struct Elf32_Ehdr {
     unsigned char e_ident[EI_NIDENT] = {0x7F, 'E', 'L', 'F', 0x00, 0x00, 0x00,
                                         0x00};    /* Magic number and other info */
     Elf32_Half e_type{};            /* Object file type */
-    Elf32_Addr e_entry{};        /* Entry point virtual address */
     Elf32_Off e_phoff{};        /* Program header table file offset */
     Elf32_Off e_shoff{};        /* Section header table file offset */
     Elf32_Half e_phnum{};        /* Program header table entry count */
     Elf32_Half e_shnum{};        /* Section header table entry count */
-
-    friend ostream &operator<<(ostream &os, const Elf32_Ehdr &ehdr) {
-        os << "e_ident: " << ehdr.e_ident << " e_type: " << ehdr.e_type << " e_entry: " << ehdr.e_entry << " e_phoff: "
-           << ehdr.e_phoff << " e_shoff: " << ehdr.e_shoff << " e_phnum: " << ehdr.e_phnum << " e_shnum: "
-           << ehdr.e_shnum;
-        return os;
-    }
 };
 
 
@@ -65,12 +56,6 @@ struct Elf32_Sym {
     Elf32_Addr st_value = 0;        /* Symbol value */
     unsigned char st_info = 0;        /* Symbol type and binding */
     Elf32_Section st_shndx = 0;        /* Section index */
-
-    friend ostream &operator<<(ostream &os, const Elf32_Sym &sym) {
-        os << "st_name: " << sym.st_name << " st_value: " << sym.st_value << " st_info: " << sym.st_info
-           << " st_shndx: " << sym.st_shndx;
-        return os;
-    }
 };
 
 /* Legal values for ST_BIND subfield of st_info (symbol binding).  */
@@ -102,13 +87,6 @@ struct Elf32_Rela {
     Elf32_Addr r_offset{};        /* Address in section */
     Elf32_Word r_info{};            /* Relocation type and symbol index */
     Elf32_Sword r_addend{};        /* Addend */
-
-    friend ostream &operator<<(ostream &os, const Elf32_Rela &rela) {
-        os << "r_offset: " << rela.r_offset << " r_sym: " << (Elf32_Word) ELF32_R_SYM(rela.r_info) << " r_type: "
-           << (Elf32_Word) ELF32_R_TYPE(rela.r_info) << " r_addend: "
-           << rela.r_addend << " ";
-        return os;
-    }
 };
 
 /* Relocation types.  */
@@ -128,12 +106,6 @@ struct Elf32_Shdr {
     Elf32_Off sh_offset{};        /* Section file offset */
     Elf32_Word sh_size{};        /* Section size in bytes */
     Elf32_Word sh_link{};        /* Link to another section */
-
-    friend ostream &operator<<(ostream &os, const Elf32_Shdr &shdr) {
-        os << "sh_name: " << shdr.sh_name << " sh_type: " << shdr.sh_type << " sh_addr: " << shdr.sh_addr
-           << " sh_offset: " << shdr.sh_offset << " sh_size: " << shdr.sh_size << " sh_link: " << shdr.sh_link;
-        return os;
-    }
 };
 
 /* Special section indices.  */
@@ -157,9 +129,4 @@ struct Elf32_Phdr {
     Elf32_Off p_offset{};        /* Segment file offset */
     Elf32_Addr p_paddr{};        /* Segment physical address */
     Elf32_Word p_memsz{};        /* Segment size in memory */
-
-    friend ostream &operator<<(ostream &os, const Elf32_Phdr &phdr) {
-        os << "p_offset: " << phdr.p_offset << " p_paddr: " << phdr.p_paddr << " p_memsz: " << phdr.p_memsz;
-        return os;
-    }
 };
