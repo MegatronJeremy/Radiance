@@ -15,7 +15,7 @@ label:
     ld my_data, %r1
 	sub %r3, %r1
 	add %r3, %r4
-	call continue2
+	call continue
 	jmp out
 	halt
 	.skip 10

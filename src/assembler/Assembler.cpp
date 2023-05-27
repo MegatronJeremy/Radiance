@@ -5,6 +5,7 @@
 #include <cstring>
 #include <queue>
 #include <utility>
+#include <algorithm>
 #include <stack>
 
 Elf32_Addr Assembler::locationCounter = 0;
@@ -158,6 +159,9 @@ bool Assembler::nextPass() {
     if (pass == 2)
         return false;
 
+    // resolve jump table before second pass
+    resolveJMPTab();
+
     // resolve TNS before second pass
     resolveTNS();
 
@@ -304,21 +308,28 @@ void Assembler::insertJumpIns(yytokentype type, const PoolConstant &constant,
         return;
     }
 
-    if (pass == 2 && !constant.isNumeric) {
+    if (!constant.isNumeric) {
         Elf32_Sym *sd = eFile.symbolTable.get(constant.symbol);
-        if (sd->st_shndx == currentSection) { // no need for literal poool, use pc relative addressing
-            int16_t disp = getDisplacement(sd->st_value, locationCounter + INSTRUCTION_LEN_BYTES);
-            insertInstruction(type, {PC, fields[REG_B], fields[REG_C], disp});
+        if (pass == 1 && sd->st_shndx == SHN_UNDEF) {
+            // insert into jump table for size resolution after first pass
+            JMPTabEntry jt;
+            jt.address = locationCounter;
+            jt.symbol = constant.symbol;
 
-            // BUT PADDING NEEDED TO KEEP THE CODE SIZE
             size_t pad;
             if (type == BGT) pad = 2;
             else if (type != JMP) pad = 1;
             else pad = 0;
+            jt.pad = pad * INSTRUCTION_LEN_BYTES;
 
-            for (size_t i = 0; i < pad; i++) {
-                insertInstruction(NOP);
+            // don't insert for jmp - there is no pad
+            if (jt.pad != 0) {
+                jmpTabs[currentSection].push_back(jt);
             }
+        }
+        if ((pass == 1 && sd->st_shndx == SHN_UNDEF) || sd->st_shndx == currentSection) {
+            int16_t disp = getDisplacement(sd->st_value, locationCounter + INSTRUCTION_LEN_BYTES);
+            insertInstruction(type, {PC, fields[REG_B], fields[REG_C], disp});
             return;
         }
     }
@@ -353,17 +364,19 @@ void Assembler::insertCallIns(const PoolConstant &constant) {
         return;
     }
 
-    if (pass == 2 && !constant.isNumeric) {
+    if (!constant.isNumeric) {
         Elf32_Sym *sd = eFile.symbolTable.get(constant.symbol);
-        if (sd->st_shndx == currentSection) { // no need for literal poool, use pc relative addressing
+        if (pass == 1 && sd->st_shndx == SHN_UNDEF) {
+            // insert into jump table for size resolution after first pass
+            JMPTabEntry jt;
+            jt.address = locationCounter;
+            jt.symbol = constant.symbol;
+            jt.pad = 4 * INSTRUCTION_LEN_BYTES;
+            jmpTabs[currentSection].push_back(jt);
+        }
+        if ((pass == 1 && sd->st_shndx == SHN_UNDEF) || sd->st_shndx == currentSection) {
             int16_t disp = getDisplacement(sd->st_value, locationCounter + INSTRUCTION_LEN_BYTES);
             insertInstruction(CALL, {PC, R0, R0, disp});
-
-            size_t pad = 4;
-            // BUT PADDING NEEDED TO KEEP THE SAME CODE SIZE
-            for (size_t i = 0; i < pad; i++) {
-                insertInstruction(NOP);
-            }
             return;
         }
     }
@@ -630,6 +643,34 @@ void Assembler::resolveTNS() {
 
 string Assembler::getSymbolName(Elf32_Word ndx) {
     return eFile.symbolTable.symbolNames[ndx];
+}
+
+void Assembler::resolveJMPTab() {
+    for (auto &it: jmpTabs) {
+        Elf32_Section sec = it.first;
+        vector<JMPTabEntry> &jmpTab = it.second;
+
+        std::sort(jmpTab.begin(), jmpTab.end(), [](JMPTabEntry &a, JMPTabEntry &b) { return a.address > b.address; });
+
+        for (auto &ent: jmpTab) {
+            Elf32_Sym *sym = eFile.symbolTable.get(ent.symbol);
+            if (sym->st_shndx != sec) { // ned to increase values of all symbols
+                Elf32_Shdr &section = eFile.sectionTable.get(sec);
+                section.sh_size += ent.pad;
+                increaseAddresses(sec, ent.address, ent.pad);
+            }
+        }
+    }
+
+}
+
+void Assembler::increaseAddresses(Elf32_Section sec, Elf32_Word address, Elf32_Word pad) {
+    for (Elf32_Sym &sym: eFile.symbolTable.symbolDefinitions) {
+        if (sym.st_shndx != sec || sym.st_value <= address) {
+            continue;
+        }
+        sym.st_value += pad;
+    }
 }
 
 
