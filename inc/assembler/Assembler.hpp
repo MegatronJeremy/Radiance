@@ -67,12 +67,11 @@ public:
 
     void resolveTNS();
 
-    string getSymbolName(Elf32_Word ndx);
-
     bool nextPass();
 
-    static void incLocationCounter(Elf32_Word bytes = 4);
-
+    static void incLocationCounter(Elf32_Word bytes = 4) {
+        locationCounter += bytes;
+    }
 
 private:
     Elf32_Ehdr elfHeader{};
