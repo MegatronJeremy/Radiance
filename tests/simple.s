@@ -17,6 +17,12 @@ label:
 	jmp out
 	halt
 	.skip 10
+continue:
+    st %r1, my_data
+	bgt %r0, %r1, end
+	ret
+out:
+    jmp label
 my_data:
     .word 5
 end:

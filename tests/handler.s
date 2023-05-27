@@ -17,6 +17,8 @@ handler:
 my_isr_timer:
     ld $ascii_code , %r1
     st %r1, term_out
+    ld $1, %r8
+    add %r8, %r9
     jmp finish
 # obrada prekida od terminala
 my_isr_terminal:

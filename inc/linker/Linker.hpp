@@ -42,11 +42,7 @@ private:
 
     unordered_map<string, Elf32_Addr> placeDefs;
 
-    vector<Elf32_Shdr> programSections;
-
     unordered_map<string, Elf32_Word> sectionSizes;
 
     unordered_map<string, Elf32_Addr> sectionMap;
-
-    SymbolTable symbolTable;
 };

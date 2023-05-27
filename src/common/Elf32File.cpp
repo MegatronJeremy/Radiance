@@ -93,18 +93,20 @@ void Elf32File::loadSection(const Elf32_Shdr &sh, Elf32_Section &currDataSection
     switch (sh.sh_type) {
         case SHT_PROGBITS:
         case SHT_NOBITS: {
-            // load data section
-            vector<char> v;
+            if (sh.sh_size > 0) { // only load if section size is not-null
+                stringstream s;
 
-            v.resize(sh.sh_size);
+                // load data section
+                vector<char> v;
 
-            file.read(v.data(), sh.sh_size);
+                v.resize(sh.sh_size);
 
-            stringstream s;
+                file.read(v.data(), sh.sh_size);
 
-            s.write(v.data(), sh.sh_size);
+                s.write(v.data(), sh.sh_size);
+                dataSections[currDataSection++] = std::move(s);
+            }
 
-            dataSections[currDataSection++] = std::move(s);
             break;
         }
         case SHT_STRTAB: {
@@ -415,7 +417,7 @@ void Elf32File::writeRelToOutputFile(const string &fileName) {
     // all written section headers
     elfHeader.e_shnum = sectionTable.sectionDefinitions.size() + additionalHeaders.size();
 
-    // write main section headers (except undefined sectiond!!!) TODO - check this everywhere else
+    // write main section headers (except undefined sectiond!!!)
     for (Elf32_Shdr &sh: sectionTable.sectionDefinitions) {
         file.write(reinterpret_cast<char *>(&sh), sizeof(sh));
     }

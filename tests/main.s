@@ -7,6 +7,7 @@
     ld $handler, %r1
     csrwr %r1, %handler
     ld $0x1, %r1
+    ld $0x0, %r9
     st %r1, tim_cfg
 wait:
     ld my_counter, %r1
