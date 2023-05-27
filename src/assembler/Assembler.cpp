@@ -359,7 +359,7 @@ void Assembler::insertCallIns(const PoolConstant &constant) {
             int16_t disp = getDisplacement(sd->st_value, locationCounter + INSTRUCTION_LEN_BYTES);
             insertInstruction(CALL, {PC, R0, R0, disp});
 
-            size_t pad = 6;
+            size_t pad = 4;
             // BUT PADDING NEEDED TO KEEP THE SAME CODE SIZE
             for (size_t i = 0; i < pad; i++) {
                 insertInstruction(NOP);
@@ -370,28 +370,23 @@ void Assembler::insertCallIns(const PoolConstant &constant) {
 
     // insert long call
     int16_t stackR13Offs = -2 * WORD_LEN_BYTES;
-    int16_t stackJmpOffs = -3 * WORD_LEN_BYTES;
 
     Elf32_Addr poolConstantAddr = getPoolConstantAddr(constant);
 
     insertInstruction(ST, {SP, R0, R13, stackR13Offs}); // store above top of stack (reserve one location)
 
-    int16_t offsetToPoolLiteral = getDisplacement(poolConstantAddr,
-                                                  locationCounter + WORD_LEN_BYTES); // one forward
-    insertInstruction(LD_PCREL, {R13, R0, offsetToPoolLiteral}); // load pool literal value
-    insertInstruction(ST, {SP, R0, R13, stackJmpOffs}); // store above top of stack
-
     // push pc of instruction after jump, before jump
     insertInstruction(LD_REG, {R13, PC, 3 * INSTRUCTION_LEN_BYTES}); // skip over three instructions
     insertInstruction(PUSH, {R13}); // push return PC on reserved stack location
-    stackJmpOffs += WORD_LEN_BYTES; // because of push
-    stackR13Offs += WORD_LEN_BYTES;
+    stackR13Offs += WORD_LEN_BYTES; // because of push
 
     // restore R13
     insertInstruction(LD, {R13, SP, R0, stackR13Offs});
 
+    int16_t offsetToPoolLiteral = getDisplacement(poolConstantAddr,
+                                                  locationCounter + WORD_LEN_BYTES); // one forward
     // pseudo-jump using load
-    insertInstruction(LD, {PC, SP, R0, stackJmpOffs});
+    insertInstruction(LD_PCREL, {PC, R0, offsetToPoolLiteral});
 }
 
 void Assembler::insertLoadIns(yytokentype type, const PoolConstant &poolConstant, vector<int16_t> &&fields) {
