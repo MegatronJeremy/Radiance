@@ -91,6 +91,9 @@ void Emulator::handleInstruction(Elf32_Word nextInstruction) {
                     cpu.setGPRX(regA, cpu.getGPRX(regB) * cpu.getGPRX(regC));
                     break;
                 case MODE_DIV:
+                    if (cpu.getGPRX(regC) == 0) {
+                        throw runtime_error("Divide by zero exception");
+                    }
                     cpu.setGPRX(regA, cpu.getGPRX(regB) / cpu.getGPRX(regC));
                     break;
                 default:

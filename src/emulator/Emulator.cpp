@@ -36,12 +36,16 @@ void Emulator::run() {
     while (running) {
         Elf32_Word nextInstruction = loadWordFromMem(cpu.getGPRX(PC));
 
+        cout << "Next instruction: " << hex << nextInstruction << endl;
+        cout << "Current pc: " << hex << cpu.getGPRX(PC) << endl << endl;
+
         // update PC
         cpu.setGPRX(PC, cpu.getGPRX(PC) + WORD_LEN_BYTES);
 
         try {
             handleInstruction(nextInstruction);
-        } catch (out_of_range &e) {
+        } catch (exception &e) {
+            cout << e.what() << endl;
             badInstrIntrPending = true;
         }
 

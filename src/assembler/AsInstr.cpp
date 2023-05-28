@@ -172,7 +172,7 @@ void Assembler::insertLoadIns(yytokentype type, const PoolConstant &poolConstant
     }
 
     // load with pool value
-    Elf32_Addr poolConstantAddr = getPoolConstantAddr(PoolConstant{poolConstant.symbol});
+    Elf32_Addr poolConstantAddr = getPoolConstantAddr(poolConstant);
 
     if (type == LD_REG) {
         // if ld_reg (load only immediate) this is all that is needed
@@ -243,7 +243,7 @@ void Assembler::insertStoreIns(yytokentype type, const PoolConstant &poolConstan
     int16_t stackRTempOffs = -1 * WORD_LEN_BYTES;
     insertInstruction(ST, {SP, R0, regT, stackRTempOffs}); // store above top of stack
 
-    Elf32_Addr poolConstantAddr = getPoolConstantAddr(PoolConstant{poolConstant.symbol});
+    Elf32_Addr poolConstantAddr = getPoolConstantAddr(poolConstant);
     int16_t offsetToPoolLiteral = getDisplacement(poolConstantAddr, locationCounter + WORD_LEN_BYTES);
     insertInstruction(LD_PCREL, {regT, R0, offsetToPoolLiteral});
 
