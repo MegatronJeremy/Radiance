@@ -12,9 +12,20 @@ ostream &operator<<(ostream &os, Elf32File &file) {
        setw(4) << "Phnum" << "\t" <<
        setw(4) << "Shnum" << endl;
 
+    string type;
+    switch (file.elfHeader.e_type) {
+        case ET_REL:
+            type = "REL";
+            break;
+        case ET_EXEC:
+            type = "EXEC";
+            break;
+        default:
+            type = "NONE";
+    }
 
     os << setw(4) << file.elfHeader.e_ident << "\t" <<
-       setw(4) << file.elfHeader.e_type << "\t" <<
+       setw(4) << type << "\t" <<
        setw(6) << file.elfHeader.e_phoff << "\t" <<
        setw(6) << file.elfHeader.e_shoff << "\t" <<
        setw(4) << file.elfHeader.e_phnum << "\t" <<
@@ -25,7 +36,7 @@ ostream &operator<<(ostream &os, Elf32File &file) {
     if (file.elfHeader.e_type == ET_REL) {
         os << "Section Headers:" << endl;
         os << setw(4) << "Num" << "\t"
-           << setw(4) << "Type" << "\t"
+           << setw(6) << "Type" << "\t"
            << setw(6) << "Offset" << "\t"
            << setw(6) << "Size" << "\t"
            << setw(4) << "Link" << "\t"
@@ -35,21 +46,33 @@ ostream &operator<<(ostream &os, Elf32File &file) {
         int i = 0;
         for (Elf32_Shdr &shdr: file.sectionTable.sectionDefinitions) {
             string sectionName;
+            string sectionType;
             switch (shdr.sh_type) {
                 case SHT_RELA:
+                    type = "RELA";
                     sectionName = ".rela." + file.sectionName(shdr.sh_link);
                     break;
                 case SHT_STRTAB:
+                    type = "STRT";
                     sectionName = ".strtab";
                     break;
                 case SHT_SYMTAB:
+                    type = "SYMT";
                     sectionName = ".symtab";
                     break;
-                default:
+                case SHT_NOBITS:
+                    type = "NOBIT";
                     sectionName = file.symbolTable.symbolNames[shdr.sh_name];
+                    break;
+                case SHT_PROGBITS:
+                    type = "PROGB";
+                    sectionName = file.symbolTable.symbolNames[shdr.sh_name];
+                    break;
+                default:
+                    type = "NULL";
             }
             os << setw(4) << '[' + to_string(i++) + ']' << "\t"
-               << setw(4) << shdr.sh_type << "\t"
+               << setw(6) << type << "\t"
                << setw(6) << shdr.sh_offset << "\t"
                << setw(6) << shdr.sh_size << "\t"
                << setw(4) << shdr.sh_link << "\t"
@@ -61,14 +84,39 @@ ostream &operator<<(ostream &os, Elf32File &file) {
 
         os << "#.symtab" << endl;
         os << setw(4) << "Shndx" << "\t"
-           << setw(4) << "Bind" << "\t"
-           << setw(4) << "Type" << "\t"
+           << setw(6) << "Bind" << "\t"
+           << setw(6) << "Type" << "\t"
            << setw(8) << "Value" << "\t"
            << setw(16) << "Name" << "\t" << endl;
         for (Elf32_Sym &sym: file.symbolTable.symbolDefinitions) {
-            os << setw(4) << sym.st_shndx << "\t"
-               << setw(4) << static_cast<Elf32_Word>(ELF32_ST_BIND(sym.st_info)) << "\t"
-               << setw(4) << static_cast<Elf32_Word>(ELF32_ST_TYPE(sym.st_info)) << "\t"
+            string bind;
+            string shndx;
+            if (ELF32_ST_BIND(sym.st_info) == STB_GLOBAL) {
+                bind = "GLOB";
+            } else {
+                bind = "LOC";
+            }
+
+            if (ELF32_ST_TYPE(sym.st_info) == STT_SECTION) {
+                type = "SECT";
+            } else {
+                type = "NOTYP";
+            }
+
+            switch (sym.st_shndx) {
+                case SHN_UNDEF:
+                    shndx = "*UND*";
+                    break;
+                case SHN_ABS:
+                    shndx = "*ABS*";
+                    break;
+                default:
+                    shndx = to_string(sym.st_shndx);
+            }
+
+            os << setw(4) << shndx << "\t"
+               << setw(6) << bind << "\t"
+               << setw(6) << type << "\t"
                << setw(8) << right << setfill('0') << hex << sym.st_value << setfill(' ') << dec << left << "\t"
                << file.symbolTable.symbolNames[sym.st_name] << endl;
         }
@@ -79,12 +127,24 @@ ostream &operator<<(ostream &os, Elf32File &file) {
             os << "#.rela." << file.sectionName(it.first) << endl;
             RelocationTable &relaTab = it.second;
             os << setw(6) << "Offset" << "\t"
-               << setw(4) << "Type" << "\t"
+               << setw(6) << "Type" << "\t"
                << setw(4) << "Addend" << "\t"
                << setw(8) << "Symbol" << "\t" << endl;
+
             for (Elf32_Rela &rel: relaTab.relocationEntries) {
+                switch (ELF32_R_TYPE(rel.r_info)) {
+                    case R_32:
+                        type = "R_32";
+                        break;
+                    case R_PC32:
+                        type = "R_PC32";
+                        break;
+                    default:
+                        type = "NONE";
+                }
+
                 os << setw(6) << rel.r_offset << "\t"
-                   << setw(4) << ELF32_R_TYPE(rel.r_info) << "\t"
+                   << setw(6) << type << "\t"
                    << setw(4) << rel.r_addend << "\t"
                    << file.symbolTable.symbolNames[ELF32_R_SYM(rel.r_info)] << endl;
             }

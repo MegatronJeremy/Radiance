@@ -33,7 +33,7 @@ void Assembler::insertJumpIns(yytokentype type, const PoolConstant &constant,
         Elf32_Sym *sd = eFile.symbolTable.get(constant.symbol);
         if (pass == 1 && sd->st_shndx == SHN_UNDEF) {
             // insert into jump table for size resolution after first pass
-            JMPTabEntry jt;
+            IpadTabEntry jt;
             jt.address = locationCounter;
             jt.symbol = constant.symbol;
 
@@ -45,7 +45,7 @@ void Assembler::insertJumpIns(yytokentype type, const PoolConstant &constant,
 
             // don't insert for jmp - there is no pad
             if (jt.pad != 0) {
-                jmpTabs[currentSection].push_back(jt);
+                ipadTabs[currentSection].push_back(jt);
             }
         }
         if ((pass == 1 && sd->st_shndx == SHN_UNDEF) || sd->st_shndx == currentSection) {
@@ -89,11 +89,11 @@ void Assembler::insertCallIns(const PoolConstant &constant) {
         Elf32_Sym *sd = eFile.symbolTable.get(constant.symbol);
         if (pass == 1 && sd->st_shndx == SHN_UNDEF) {
             // insert into jump table for size resolution after first pass
-            JMPTabEntry jt;
+            IpadTabEntry jt;
             jt.address = locationCounter;
             jt.symbol = constant.symbol;
             jt.pad = 4 * INSTRUCTION_LEN_BYTES;
-            jmpTabs[currentSection].push_back(jt);
+            ipadTabs[currentSection].push_back(jt);
         }
         if ((pass == 1 && sd->st_shndx == SHN_UNDEF) || sd->st_shndx == currentSection) {
             int16_t disp = getDisplacement(sd->st_value, locationCounter + INSTRUCTION_LEN_BYTES);
@@ -142,7 +142,7 @@ void Assembler::insertLoadIns(yytokentype type, const PoolConstant &poolConstant
 
         if (pass == 1 && sd->st_shndx == SHN_UNDEF) {
             // insert into jump table for size resolution after first pass
-            JMPTabEntry jt;
+            IpadTabEntry jt;
             jt.address = locationCounter;
             jt.symbol = poolConstant.symbol;
 
@@ -155,7 +155,7 @@ void Assembler::insertLoadIns(yytokentype type, const PoolConstant &poolConstant
             }
             if (jt.pad != 0) {
                 jt.pad *= INSTRUCTION_LEN_BYTES;
-                jmpTabs[currentSection].push_back(jt);
+                ipadTabs[currentSection].push_back(jt);
             }
         }
 
@@ -223,12 +223,12 @@ void Assembler::insertStoreIns(yytokentype type, const PoolConstant &poolConstan
 
         if (pass == 1 && sd->st_shndx == SHN_UNDEF) {
             // insert into jump table for size resolution after first pass
-            JMPTabEntry jt;
+            IpadTabEntry jt;
             jt.address = locationCounter;
             jt.symbol = poolConstant.symbol;
 
             jt.pad = 3 * INSTRUCTION_LEN_BYTES;
-            jmpTabs[currentSection].push_back(jt);
+            ipadTabs[currentSection].push_back(jt);
         }
 
         if ((pass == 1 && sd->st_shndx == SHN_UNDEF) || sd->st_shndx == currentSection) {

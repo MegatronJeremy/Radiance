@@ -20,7 +20,7 @@ bool Assembler::nextPass() {
         return false;
 
     // resolve jump table before second pass
-    resolveJMPTab();
+    resolveIpadTab();
 
     // resolve TNS before second pass
     resolveTNS();

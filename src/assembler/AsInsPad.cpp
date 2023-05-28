@@ -2,14 +2,14 @@
 
 #include <algorithm>
 
-void Assembler::resolveJMPTab() {
-    for (auto &it: jmpTabs) {
+void Assembler::resolveIpadTab() {
+    for (auto &it: ipadTabs) {
         Elf32_Section sec = it.first;
-        vector<JMPTabEntry> &jmpTab = it.second;
+        vector<IpadTabEntry> &ipadTab = it.second;
 
-        sort(jmpTab.begin(), jmpTab.end(), [](JMPTabEntry &a, JMPTabEntry &b) { return a.address > b.address; });
+        sort(ipadTab.begin(), ipadTab.end(), [](IpadTabEntry &a, IpadTabEntry &b) { return a.address > b.address; });
 
-        for (auto &ent: jmpTab) {
+        for (auto &ent: ipadTab) {
             Elf32_Sym *sym = eFile.symbolTable.get(ent.symbol);
             if (sym->st_shndx != sec) { // ned to increase values of all symbols
                 Elf32_Shdr &section = eFile.sectionTable.get(sec);

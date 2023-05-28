@@ -1,6 +1,6 @@
 .global out
 .global continue
-.section text2
+.section text
 continue:
     st %r1, my_data
 	bgt %r0, %r1, end
