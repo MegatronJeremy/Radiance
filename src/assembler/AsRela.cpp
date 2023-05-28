@@ -22,11 +22,11 @@ Elf32_Word Assembler::generateAbsoluteRelocation(const string &symbol) {
 
         Elf32_Word sectionName = eFile.sectionTable.get(sd->st_shndx).sh_name;
 
-        rd.r_info = ELF32_R_INFO(sectionName, R_32S);
+        rd.r_info = ELF32_R_INFO(sectionName, R_32);
     } else {
         // if global or undefined use symbol index
         rd.r_addend = 0;
-        rd.r_info = ELF32_R_INFO(sd->st_name, R_32S);
+        rd.r_info = ELF32_R_INFO(sd->st_name, R_32);
     }
 
     rd.r_offset = locationCounter;

@@ -94,8 +94,6 @@ struct Elf32_Rela {
 #define R_NONE        0    /* No reloc */
 #define R_PC32        2    /* PC relative 32 bit signed */
 #define R_32        10    /* Direct 32 bit zero extended */
-#define R_32S        11    /* Direct 32 bit sign extended */
-
 
 /* Section header.  */
 

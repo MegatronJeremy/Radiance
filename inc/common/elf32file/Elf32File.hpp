@@ -1,10 +1,10 @@
 #pragma once
 
-#include "../../inc/common/RelocationTable.hpp"
-#include "../../inc/common/SectionTable.hpp"
-#include "Elf32.hpp"
-#include "SymbolTable.hpp"
-#include "ProgramTable.hpp"
+#include "../RelocationTable.hpp"
+#include "../SectionTable.hpp"
+#include "../Elf32.hpp"
+#include "../SymbolTable.hpp"
+#include "../ProgramTable.hpp"
 #include <vector>
 #include <string>
 #include <ostream>

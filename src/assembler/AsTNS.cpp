@@ -154,7 +154,7 @@ void Assembler::resolveTNS() {
                     // insert relocation value only for symbol (in a specially defined table)
                     Elf32_Rela rd;
                     rd.r_addend = static_cast<Elf32_Sword>(s.top()); // the constant addend
-                    rd.r_info = ELF32_R_INFO(bSym->st_name, R_32S);
+                    rd.r_info = ELF32_R_INFO(bSym->st_name, R_32);
                     rd.r_offset = 0; // to be configured based on usage
                     equExtRela[it.first] = rd;
                     insertAbsoluteSymbol(it.first, 0); // insert as local symbol only

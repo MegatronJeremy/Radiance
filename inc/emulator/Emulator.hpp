@@ -7,7 +7,7 @@
 using namespace std::chrono;
 
 #include "../common/Elf32.hpp"
-#include "../common/Elf32File.hpp"
+#include "../common/elf32file/Elf32File.hpp"
 #include "../common/Ins32.hpp"
 #include "NonBufferedTerminal.hpp"
 #include "Constants.hpp"

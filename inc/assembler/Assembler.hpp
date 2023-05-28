@@ -7,7 +7,7 @@
 #include "../common/LiteralTable.hpp"
 #include "../common/Ins32.hpp"
 #include "../../misc/parser.hpp"
-#include "../common/Elf32File.hpp"
+#include "../common/elf32file/Elf32File.hpp"
 #include "TNSEntry.hpp"
 #include "JMPTabEntry.hpp"
 

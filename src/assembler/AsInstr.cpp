@@ -136,6 +136,41 @@ void Assembler::insertLoadIns(yytokentype type, const PoolConstant &poolConstant
         return;
     }
 
+    if (!poolConstant.isNumeric) {
+        // try to load symbol with PC relative addressing
+        Elf32_Sym *sd = eFile.symbolTable.get(poolConstant.symbol);
+
+        if (pass == 1 && sd->st_shndx == SHN_UNDEF) {
+            // insert into jump table for size resolution after first pass
+            JMPTabEntry jt;
+            jt.address = locationCounter;
+            jt.symbol = poolConstant.symbol;
+
+            if (type == LD_REG) {
+                jt.pad = 0;
+            } else if (fields[REG_B] == R0 || fields[REG_A] != fields[REG_B]) {
+                jt.pad = 1;
+            } else {
+                jt.pad = 3;
+            }
+            if (jt.pad != 0) {
+                jt.pad *= INSTRUCTION_LEN_BYTES;
+                jmpTabs[currentSection].push_back(jt);
+            }
+        }
+
+        if ((pass == 1 && sd->st_shndx == SHN_UNDEF) || sd->st_shndx == currentSection) {
+            int16_t disp = getDisplacement(sd->st_value, locationCounter + INSTRUCTION_LEN_BYTES);
+            fields.push_back(disp);
+            if (type == LD_REG) {
+                insertInstruction(LD_REG, {fields[REG_A], PC, disp});
+            } else {
+                insertInstruction(type, {fields[REG_A], fields[REG_B], PC, disp});
+            }
+            return;
+        }
+    }
+
     // load with pool value
     Elf32_Addr poolConstantAddr = getPoolConstantAddr(PoolConstant{poolConstant.symbol});
 
@@ -144,7 +179,7 @@ void Assembler::insertLoadIns(yytokentype type, const PoolConstant &poolConstant
         int16_t offsetToPoolLiteral = getDisplacement(poolConstantAddr, locationCounter + WORD_LEN_BYTES);
         fields.push_back(offsetToPoolLiteral);
 
-        insertInstruction(LD_PCREL, fields);
+        insertInstruction(LD_PCREL, fields); // using REG_B (R0 here)
     } else if (fields[REG_B] == R0 || fields[REG_A] != fields[REG_B]) {
         // use medium format with the destination register as the temporary register
         int16_t offsetToPoolLiteral = getDisplacement(poolConstantAddr, locationCounter + WORD_LEN_BYTES);
@@ -180,6 +215,27 @@ void Assembler::insertStoreIns(yytokentype type, const PoolConstant &poolConstan
         fields.push_back(static_cast<int16_t>(poolConstant.number));
         insertInstruction(type, fields);
         return;
+    }
+
+    if (!poolConstant.isNumeric) {
+        // try to use offset of symbol with PC relative addressing
+        Elf32_Sym *sd = eFile.symbolTable.get(poolConstant.symbol);
+
+        if (pass == 1 && sd->st_shndx == SHN_UNDEF) {
+            // insert into jump table for size resolution after first pass
+            JMPTabEntry jt;
+            jt.address = locationCounter;
+            jt.symbol = poolConstant.symbol;
+
+            jt.pad = 3 * INSTRUCTION_LEN_BYTES;
+            jmpTabs[currentSection].push_back(jt);
+        }
+
+        if ((pass == 1 && sd->st_shndx == SHN_UNDEF) || sd->st_shndx == currentSection) {
+            int16_t disp = getDisplacement(sd->st_value, locationCounter + INSTRUCTION_LEN_BYTES);
+            insertInstruction(type, {PC, fields[REG_B], fields[REG_C], disp}); // REG_A field is always free + PC disp
+            return;
+        }
     }
 
     Reg regT = Instruction32::getNextGPR(fields[REG_B]);

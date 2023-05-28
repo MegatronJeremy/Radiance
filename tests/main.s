@@ -22,7 +22,7 @@ wait:
     bne %r1, %r2, wait
     halt
 .global my_counter
-.section my_data
+#.section my_data
 my_counter:
     .word 0
 value_one:

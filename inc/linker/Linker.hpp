@@ -5,7 +5,7 @@
 #include <utility>
 #include <memory>
 
-#include "../../inc/common/Elf32File.hpp"
+#include "../common/elf32file/Elf32File.hpp"
 #include "../../inc/common/SymbolTable.hpp"
 
 using namespace std;

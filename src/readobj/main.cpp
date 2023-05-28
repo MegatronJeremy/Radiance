@@ -1,4 +1,4 @@
-#include "../../inc/common/Elf32File.hpp"
+#include "../../inc/common/elf32file/Elf32File.hpp"
 
 #include <getopt.h>
 #include <memory>

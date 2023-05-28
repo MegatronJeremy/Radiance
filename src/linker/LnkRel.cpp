@@ -34,7 +34,6 @@ void Linker::handleRelocations(Elf32File &eFile) {
             Elf32_Addr relVal;
 
             switch (ELF32_R_TYPE(rel.r_info)) {
-                case R_32S:
                 case R_32:
                     // absolute relocation: S + A
                     relVal = outSym->st_value + rel.r_addend;
