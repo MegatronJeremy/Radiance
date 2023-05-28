@@ -13,7 +13,7 @@ mathAdd:
 
 mathSub:
   push %r1
-  ld [%sp + 8], %r7 # r1, pc, arg1, arg2
+  ld [%sp + 8], %r7 # STEK: r1, pc, arg1, arg2
   ld [%sp + 12], %r1
   sub %r1, %r7
   pop %r1

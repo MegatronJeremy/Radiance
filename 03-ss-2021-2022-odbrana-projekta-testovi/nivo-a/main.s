@@ -57,13 +57,13 @@ my_start:
   call mathDiv # pc <= r0 ~ mem16[6 + destinations] ~ mathDiv
   st %r7, value5
 
-  ld value0, %r7
-  ld value1, %r1
-  ld value2, %r2
-  ld value3, %r3
-  ld value4, %r4
-  ld value5, %r5
-  ld value6, %sp
+  ld value0, %r7 #konacna vrednost: ABCD
+  ld value1, %r1 #konacna vrednost: 1
+  ld value2, %r2 #konacna vrednost: 2
+  ld value3, %r3 #konacna vrednost: 3
+  ld value4, %r4 #konacna vrednost: 4
+  ld value5, %r5 #konacna vrednost: 5
+  ld value6, %sp #konacna vrednost: 0
 
   halt
 

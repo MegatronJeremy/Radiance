@@ -3,7 +3,7 @@
 .extern value0
 
 .section isr
-# prekidna rutina za slobodni ulaz 0
+# prekidna rutina za slobodni ulaz 0 - OVO JE KORISTENO KAO GLAVNA PREKIDNA RUTINA
 .global isr_user0
 isr_user0:
   push %r2
