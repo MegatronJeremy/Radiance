@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
 
     bool hex = false, rela = false;
     int c;
-    while ((c = getopt_long(argc, argv, "o:p:hr", long_options, nullptr)) != -1) {
+    while ((c = getopt_long_only(argc, argv, "o:p:hr", long_options, nullptr)) != -1) {
         switch (c) {
             case 'o':
                 out_file = optarg;
