@@ -70,6 +70,9 @@ ostream &operator<<(ostream &os, Elf32File &file) {
                     break;
                 default:
                     type = "NULL";
+                    sectionName = file.symbolTable.symbolNames[shdr.sh_name];
+                    break;
+
             }
             os << setw(4) << '[' + to_string(i++) + ']' << "\t"
                << setw(6) << type << "\t"
