@@ -10,6 +10,17 @@
     ld $handler, %r1
     csrwr %r1, %handler
 
+    # testing bad instr interrupts
+    # jmp value_three
+
+    # testing software interrupts
+    ld $7, %r2
+    ld $1, %r3
+loop:
+    int
+    sub %r3, %r2
+    bgt %r2, %r0, loop
+
     # testing addressing modes
     ld $my_counter, %r12
     ld $my_counter, %r4
@@ -43,5 +54,5 @@ value_one:
 value_two:
     .word 0xb
 value_three:
-    .word 0xc
+    .word 0xfffffffa
 .end

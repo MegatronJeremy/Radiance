@@ -34,15 +34,15 @@ private:
     Elf32_Word pop();
 
     bool timerMasked() {
-        return cpu.getCSRX(STATUS) & (1u << 0);
+        return cpu.getCSRX(STATUS) & TIMER_MASK_BIT;
     }
 
     bool terminalMasked() {
-        return cpu.getCSRX(STATUS) & (1u << 1);
+        return cpu.getCSRX(STATUS) & TERMINAL_MASK_BIT;
     }
 
     bool interruptsMasked() {
-        return cpu.getCSRX(STATUS) & (1u << 2);
+        return cpu.getCSRX(STATUS) & GLOBAL_MASK_BIT;
     }
 
     void writeToTerminal();
@@ -60,8 +60,6 @@ private:
     CPU cpu;
 
     bool running = false;
-
-    bool softwareIntrPending = false;
 
     bool terminalIntrPending = false;
 

@@ -18,7 +18,8 @@ Elf32_Sym *Assembler::insertLocalSymbol(const string &symbol) {
 
         return sd;
     } else if (sd != nullptr) {
-        throw runtime_error("Assembler error: symbol was already defined!");
+        throw runtime_error(
+                "Assembler error: symbol " + eFile.symbolTable.symbolNames[sd->st_name] + " was already defined!");
     } else {
         Elf32_Sym nsd{};
         nsd.st_shndx = currentSection;
@@ -33,7 +34,8 @@ void Assembler::insertAbsoluteSymbol(const string &symbol, uint32_t symbolValue)
     Elf32_Sym *sd = eFile.symbolTable.get(symbol);
 
     if (sd != nullptr && sd->st_shndx != SHN_ABS && sd->st_shndx != SHN_UNDEF) {
-        throw runtime_error("Assembler error: symbol was already defined!");
+        throw runtime_error(
+                "Assembler error: symbol " + eFile.symbolTable.symbolNames[sd->st_name] + " was already defined!");
     } else if (sd != nullptr) {
         sd->st_shndx = SHN_ABS;
         sd->st_value = symbolValue;

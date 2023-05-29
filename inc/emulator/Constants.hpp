@@ -18,6 +18,12 @@ constexpr Elf32_Addr TIM_CFG = 0xFFFFFF10;
 
 constexpr Elf32_Word NUM_TIM_MODES = 8;
 
+constexpr Elf32_Word TIMER_MASK_BIT = (1u << 0);
+
+constexpr Elf32_Word TERMINAL_MASK_BIT = (1u << 1);
+
+constexpr Elf32_Word GLOBAL_MASK_BIT = (1u << 2);
+
 constexpr size_t TIMER_MODES[NUM_TIM_MODES] = { // in micros
         500 * 1000, 1000 * 1000, 1500 * 1000, 2000 * 1000,
         5000 * 1000, 10000 * 1000, 30000 * 1000, 60000 * 1000

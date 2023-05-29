@@ -46,7 +46,11 @@ void Emulator::handleInstruction(Elf32_Word nextInstruction) {
             running = false;
             break;
         case INT_OP:
-            softwareIntrPending = true;
+            push(cpu.getCSRX(STATUS));
+            push(cpu.getGPRX(PC));
+            cpu.setCSRX(CAUSE, CAUSE_INTR_SW);
+            cpu.setCSRX(STATUS, cpu.getCSRX(STATUS) & (~0x1)); // demask timer interrupts?
+            cpu.setGPRX(PC, cpu.getCSRX(HANDLER));
             break;
         case CALL_OP:
             switch (mode) {

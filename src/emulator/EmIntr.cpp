@@ -4,10 +4,7 @@ void Emulator::handleInterrupts() {
     Elf32_Word cause = CAUSE_NO_INTR;
 
     // priority of serving interrupts: SOFTWARE INTR / BAD INSTRUCTION -> TIMER -> CONSOLE
-    if (softwareIntrPending) {
-        cause = CAUSE_INTR_SW;
-        softwareIntrPending = false;
-    } else if (badInstrIntrPending) {
+    if (badInstrIntrPending) {
         cause = CAUSE_BAD_INSTR;
         badInstrIntrPending = false;
     } else if (timerIntrPending && !interruptsMasked() && !timerMasked()) {
@@ -26,7 +23,7 @@ void Emulator::handleInterrupts() {
     push(cpu.getCSRX(STATUS));
     push(cpu.getGPRX(PC));
     cpu.setCSRX(CAUSE, cause);
-    cpu.setCSRX(STATUS, cpu.getCSRX(STATUS) & (~0x1));
+    cpu.setCSRX(STATUS, cpu.getCSRX(STATUS) | GLOBAL_MASK_BIT); // mask global interrupts
     cpu.setGPRX(PC, cpu.getCSRX(HANDLER));
 }
 
