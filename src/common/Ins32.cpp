@@ -68,10 +68,12 @@ void Instruction32::setOpcode(yytokentype token, Ins32 &ins32) {
             {SHR,      SHF_OP},
 
             {ST,       ST_OP},
+            {ST_DSP,   ST_OP},
             {PUSH,     ST_OP},
             {ST_IND,   ST_OP},
 
             {LD,       LD_OP},
+            {LD_DSP,   LD_OP},
             {LD_REG,   LD_OP},
             {LD_PCREL, LD_OP},
             {POP,      LD_OP},
@@ -117,10 +119,12 @@ void Instruction32::setMode(yytokentype token, Ins32 &ins32) {
             {SHR,      MODE_SHR},
 
             {ST,       MODE_ST_REGIND_DSP},
+            {ST_DSP,   MODE_ST_REGIND_DSP},
             {PUSH,     MODE_ST_REGIND_PTR_UPD},
             {ST_IND,   MODE_ST_MEMIND_REGIND_DSP},
 
             {LD,       MODE_LD_REGIND_DSP},
+            {LD_DSP,   MODE_LD_REGIND_DSP},
             {LD_PCREL, MODE_LD_REGIND_DSP},
             {LD_REG,   MODE_LD_GPR_GPR_DSP},
             {POP,      MODE_LD_REGIND_PTR_UPD},

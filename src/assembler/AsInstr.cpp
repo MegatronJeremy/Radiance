@@ -125,7 +125,7 @@ void Assembler::insertLoadIns(yytokentype type, const PoolConstant &poolConstant
         fields.push_back(offsetToPoolLiteral);
 
         insertInstruction(LD_PCREL, fields); // using REG_B (R0 here)
-    } else if (fields[REG_B] == R0) {
+    } else if (type != LD_DSP) {
         // use medium format with the destination register as the temporary register
         int16_t offsetToPoolLiteral = getDisplacement(poolConstantAddr, locationCounter + WORD_LEN_BYTES);
 
@@ -161,7 +161,7 @@ void Assembler::insertStoreIns(yytokentype type, const PoolConstant &poolConstan
     }
 
     // else pool needed
-    if (fields[REG_B] == R0) {
+    if (type != ST_DSP) {
         Elf32_Addr poolConstantAddr = getPoolConstantAddr(poolConstant);
         int16_t offsetToPoolLiteral = getDisplacement(poolConstantAddr, locationCounter + WORD_LEN_BYTES);
 

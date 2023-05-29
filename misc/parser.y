@@ -35,7 +35,7 @@
 /* special symbols */
 %token NOP
 %token POP_CS
-%token LD_REG LD_PCREL LD_IMM
+%token LD_REG LD_PCREL LD_IMM LD_DSP ST_DSP
 %token ST_IND
 %token CALL_IND
 %token JMP_IND BEQ_IND BNE_IND BGT_IND
@@ -114,13 +114,13 @@ instruction:
     | LD SYMBOL ',' GPRX                    { as->insertLoadIns(LD, $2, {$4, R0, R0}); free($2); }
     | LD GPRX ',' GPRX                      { as->insertInstruction(LD_REG, {$4, $2}); }
     | LD '[' GPRX ']' ',' GPRX              { as->insertInstruction(LD, {$6, $3}); }
-    | LD '[' GPRX '+' LITERAL ']' ',' GPRX  { as->insertLoadIns(LD, $5, {$8, $3, R0}); }
-    | LD '[' GPRX '+' SYMBOL ']' ',' GPRX   { as->insertLoadIns(LD, $5, {$8, $3, R0}); free($5); }
+    | LD '[' GPRX '+' LITERAL ']' ',' GPRX  { as->insertLoadIns(LD_DSP, $5, {$8, $3, R0}); }
+    | LD '[' GPRX '+' SYMBOL ']' ',' GPRX   { as->insertLoadIns(LD_DSP, $5, {$8, $3, R0}); free($5); }
     | ST GPRX ',' LITERAL                   { as->insertStoreIns(ST, $4, {R0, R0, $2}); }
     | ST GPRX ',' SYMBOL                    { as->insertStoreIns(ST, $4, {R0, R0, $2}); free($4); }
     | ST GPRX ',' '[' GPRX ']'              { as->insertInstruction(ST, {$5, R0, $2}); }
-    | ST GPRX ',' '[' GPRX '+' LITERAL ']'  { as->insertStoreIns(ST, $7, {R0, $5, $2}); }
-    | ST GPRX ',' '[' GPRX '+' SYMBOL ']'   { as->insertStoreIns(ST, $7, {R0, $5, $2}); free($7); }
+    | ST GPRX ',' '[' GPRX '+' LITERAL ']'  { as->insertStoreIns(ST_DSP, $7, {R0, $5, $2}); }
+    | ST GPRX ',' '[' GPRX '+' SYMBOL ']'   { as->insertStoreIns(ST_DSP, $7, {R0, $5, $2}); free($7); }
     | CSRRD CSRX ',' GPRX                   { as->insertInstruction(CSRRD, {$4, $2}); }
     | CSRWR GPRX ',' CSRX                   { as->insertInstruction(CSRWR, {$4, $2}); }
     ;
