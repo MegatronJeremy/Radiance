@@ -144,7 +144,6 @@ void Emulator::handleInstruction(Elf32_Word nextInstruction) {
                     badInstrIntrPending = true;
             }
             break;
-
         case SHF_OP:
             switch (mode) {
                 case MODE_SHL:
@@ -157,7 +156,6 @@ void Emulator::handleInstruction(Elf32_Word nextInstruction) {
                     badInstrIntrPending = true;
             }
             break;
-
         case ST_OP:
             switch (mode) {
                 case MODE_ST_REGIND_DSP:

@@ -19,9 +19,6 @@ bool Assembler::nextPass() {
     if (pass == 2)
         return false;
 
-    // resolve jump table before second pass
-    resolveIpadTab();
-
     // resolve TNS before second pass
     resolveTNS();
 

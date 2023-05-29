@@ -9,7 +9,6 @@ void Emulator::handleInterrupts() {
         softwareIntrPending = false;
     } else if (badInstrIntrPending) {
         cause = CAUSE_BAD_INSTR;
-        cout << "Bad instruction!!!" << endl;
         badInstrIntrPending = false;
     } else if (timerIntrPending && !interruptsMasked() && !timerMasked()) {
         cause = CAUSE_INTR_TIMER;

@@ -34,8 +34,8 @@
 
 /* special symbols */
 %token NOP
-%token POP_CS
-%token LD_REG LD_PCREL LD_IMM LD_DSP ST_DSP
+%token POP_CS POP_CS_DSP POP_DSP
+%token LD_REG LD_PCREL LD_IMM LD_DSP LD_DSP_CSR ST_DSP
 %token ST_IND
 %token CALL_IND
 %token JMP_IND BEQ_IND BNE_IND BGT_IND

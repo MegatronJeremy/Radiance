@@ -36,52 +36,54 @@ Ins32 Instruction32::getInstruction(yytokentype token, const std::vector<int16_t
 
 void Instruction32::setOpcode(yytokentype token, Ins32 &ins32) {
     static std::unordered_map<yytokentype, uint8_t> opcodeMap = {
-            {HALT,     HALT_OP},
+            {HALT,       HALT_OP},
 
-            {INT,      INT_OP},
+            {INT,        INT_OP},
 
-            {CALL,     CALL_OP},
-            {CALL_IND, CALL_OP},
+            {CALL,       CALL_OP},
+            {CALL_IND,   CALL_OP},
 
-            {JMP,      JMP_OP},
-            {BEQ,      JMP_OP},
-            {BNE,      JMP_OP},
-            {BGT,      JMP_OP},
-            {JMP_IND,  JMP_OP},
-            {BEQ_IND,  JMP_OP},
-            {BNE_IND,  JMP_OP},
-            {BGT_IND,  JMP_OP},
+            {JMP,        JMP_OP},
+            {BEQ,        JMP_OP},
+            {BNE,        JMP_OP},
+            {BGT,        JMP_OP},
+            {JMP_IND,    JMP_OP},
+            {BEQ_IND,    JMP_OP},
+            {BNE_IND,    JMP_OP},
+            {BGT_IND,    JMP_OP},
 
-            {XCHG,     XCHG_OP},
+            {XCHG,       XCHG_OP},
 
-            {ADD,      ALU_OP},
-            {SUB,      ALU_OP},
-            {MUL,      ALU_OP},
-            {DIV,      ALU_OP},
+            {ADD,        ALU_OP},
+            {SUB,        ALU_OP},
+            {MUL,        ALU_OP},
+            {DIV,        ALU_OP},
 
-            {NOT,      LOG_OP},
-            {AND,      LOG_OP},
-            {OR,       LOG_OP},
-            {XOR,      LOG_OP},
+            {NOT,        LOG_OP},
+            {AND,        LOG_OP},
+            {OR,         LOG_OP},
+            {XOR,        LOG_OP},
 
-            {SHL,      SHF_OP},
-            {SHR,      SHF_OP},
+            {SHL,        SHF_OP},
+            {SHR,        SHF_OP},
 
-            {ST,       ST_OP},
-            {ST_DSP,   ST_OP},
-            {PUSH,     ST_OP},
-            {ST_IND,   ST_OP},
+            {ST,         ST_OP},
+            {ST_DSP,     ST_OP},
+            {PUSH,       ST_OP},
+            {ST_IND,     ST_OP},
 
-            {LD,       LD_OP},
-            {LD_DSP,   LD_OP},
-            {LD_REG,   LD_OP},
-            {LD_PCREL, LD_OP},
-            {POP,      LD_OP},
-            {POP_CS,   LD_OP},
-            {CSRRD,    LD_OP},
-            {CSRWR,    LD_OP},
+            {LD,         LD_OP},
+            {LD_DSP,     LD_OP},
+            {LD_REG,     LD_OP},
+            {LD_PCREL,   LD_OP},
+            {LD_DSP_CSR, LD_OP},
+            {POP,        LD_OP},
+            {POP_DSP,    LD_OP},
+            {POP_CS,     LD_OP},
+            {CSRRD,      LD_OP},
+            {CSRWR,      LD_OP},
 
-            {NOP,      LOG_OP}
+            {NOP,        LOG_OP}
     };
     auto it = opcodeMap.find(token);
     if (opcodeMap.find(token) == opcodeMap.end()) {
@@ -93,46 +95,49 @@ void Instruction32::setOpcode(yytokentype token, Ins32 &ins32) {
 
 void Instruction32::setMode(yytokentype token, Ins32 &ins32) {
     static std::unordered_map<yytokentype, uint8_t> modeMap = {
-            {CALL,     MODE_CALL},
-            {CALL_IND, MODE_CALL_IND},
+            {CALL,       MODE_CALL},
+            {CALL_IND,   MODE_CALL_IND},
 
-            {JMP,      MODE_JMP},
-            {BEQ,      MODE_BEQ},
-            {BNE,      MODE_BNE},
-            {BGT,      MODE_BGT},
-            {JMP_IND,  MODE_JMP_IND},
-            {BEQ_IND,  MODE_BEQ_IND},
-            {BNE_IND,  MODE_BNE_IND},
-            {BGT_IND,  MODE_BGT_IND},
+            {JMP,        MODE_JMP},
+            {BEQ,        MODE_BEQ},
+            {BNE,        MODE_BNE},
+            {BGT,        MODE_BGT},
+            {JMP_IND,    MODE_JMP_IND},
+            {BEQ_IND,    MODE_BEQ_IND},
+            {BNE_IND,    MODE_BNE_IND},
+            {BGT_IND,    MODE_BGT_IND},
 
-            {ADD,      MODE_ADD},
-            {SUB,      MODE_SUB},
-            {MUL,      MODE_MUL},
-            {DIV,      MODE_DIV},
+            {ADD,        MODE_ADD},
+            {SUB,        MODE_SUB},
+            {MUL,        MODE_MUL},
+            {DIV,        MODE_DIV},
 
-            {NOT,      MODE_NOT},
-            {AND,      MODE_AND},
-            {OR,       MODE_OR},
-            {XOR,      MODE_XOR},
+            {NOT,        MODE_NOT},
+            {AND,        MODE_AND},
+            {OR,         MODE_OR},
+            {XOR,        MODE_XOR},
 
-            {SHL,      MODE_SHL},
-            {SHR,      MODE_SHR},
+            {SHL,        MODE_SHL},
+            {SHR,        MODE_SHR},
 
-            {ST,       MODE_ST_REGIND_DSP},
-            {ST_DSP,   MODE_ST_REGIND_DSP},
-            {PUSH,     MODE_ST_REGIND_PTR_UPD},
-            {ST_IND,   MODE_ST_MEMIND_REGIND_DSP},
+            {ST,         MODE_ST_REGIND_DSP},
+            {ST_DSP,     MODE_ST_REGIND_DSP},
+            {PUSH,       MODE_ST_REGIND_PTR_UPD},
+            {ST_IND,     MODE_ST_MEMIND_REGIND_DSP},
 
-            {LD,       MODE_LD_REGIND_DSP},
-            {LD_DSP,   MODE_LD_REGIND_DSP},
-            {LD_PCREL, MODE_LD_REGIND_DSP},
-            {LD_REG,   MODE_LD_GPR_GPR_DSP},
-            {POP,      MODE_LD_REGIND_PTR_UPD},
-            {POP_CS,   MODE_LD_CSR_REGIND_PTR_UPD},
-            {CSRRD,    MODE_LD_GPR_CSR},
-            {CSRWR,    MODE_LD_CSR_GPR},
+            {LD,         MODE_LD_REGIND_DSP},
+            {LD_DSP,     MODE_LD_REGIND_DSP},
+            {LD_PCREL,   MODE_LD_REGIND_DSP},
+            {LD_REG,     MODE_LD_GPR_GPR_DSP},
+            {POP,        MODE_LD_REGIND_PTR_UPD},
+            {POP_DSP,    MODE_LD_REGIND_PTR_UPD},
+            {LD_DSP_CSR, MODE_LD_CSR_REGIND_DSP},
+            {POP_CS,     MODE_LD_CSR_REGIND_PTR_UPD},
+            {POP_CS_DSP, MODE_LD_CSR_REGIND_PTR_UPD},
+            {CSRRD,      MODE_LD_GPR_CSR},
+            {CSRWR,      MODE_LD_CSR_GPR},
 
-            {NOP,      MODE_XOR}
+            {NOP,        MODE_XOR}
     };
 
     auto it = modeMap.find(token);
@@ -166,14 +171,16 @@ bool Instruction32::setOrDefaultRegA(yytokentype token, Ins32 &ins32, int16_t fi
 
 bool Instruction32::setOrDefaultRegB(yytokentype token, Ins32 &ins32, int16_t field) {
     static std::unordered_map<yytokentype, Reg> regBMap = {
-            {LD_PCREL, PC},
+            {LD_PCREL,   PC},
 
-            {PUSH,     R0},
+            {PUSH,       R0},
 
-            {POP,      SP},
-            {POP_CS,   SP},
+            {POP,        SP},
+            {POP_DSP,    SP},
+            {POP_CS,     SP},
+            {POP_CS_DSP, SP},
 
-            {NOP,      R0}
+            {NOP,        R0}
     };
 
     auto it = regBMap.find(token);
@@ -189,9 +196,12 @@ bool Instruction32::setOrDefaultRegB(yytokentype token, Ins32 &ins32, int16_t fi
 
 bool Instruction32::setOrDefaultRegC(yytokentype token, Ins32 &ins32, int16_t field) {
     static std::unordered_map<yytokentype, Reg> regCMap = {
-            {LD_REG, R0},
+            {LD_REG,     R0},
 
-            {NOP,    R0}
+            {POP_DSP,    R0},
+            {POP_CS_DSP, R0},
+
+            {NOP,        R0}
     };
 
     auto it = regCMap.find(token);

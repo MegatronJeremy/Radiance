@@ -13,8 +13,8 @@ void Assembler::insertInstruction(yytokentype token, const vector<int16_t> &fiel
 }
 
 void Assembler::insertIretIns() {
-    insertInstruction(POP, {PC});
-    insertInstruction(POP, {STATUS});
+    insertInstruction(LD_DSP_CSR, {STATUS, SP, R0, +1 * WORD_LEN_BYTES});
+    insertInstruction(POP_DSP, {PC, +2 * WORD_LEN_BYTES});
 }
 
 void Assembler::insertJumpIns(yytokentype type, const PoolConstant &constant,
@@ -32,7 +32,13 @@ void Assembler::insertJumpIns(yytokentype type, const PoolConstant &constant,
     if (!constant.isNumeric) {
         Elf32_Sym *sd = eFile.symbolTable.get(constant.symbol);
 
-        if ((pass == 1 && sd->st_shndx == SHN_UNDEF) || sd->st_shndx == currentSection) {
+        // try to load absolute symbol into disp
+        if (sd->st_shndx == SHN_ABS && Util::positiveValueFitsInDisp(sd->st_value)) {
+            insertInstruction(type, {R0, fields[REG_B], fields[REG_C], static_cast<int16_t>(sd->st_value)});
+            return;
+        }
+
+        if (sd->st_shndx == currentSection) {
             int16_t disp = Util::getDisplacement(sd->st_value, locationCounter + INSTRUCTION_LEN_BYTES);
             insertInstruction(type, {PC, fields[REG_B], fields[REG_C], disp});
             return;
@@ -61,8 +67,14 @@ void Assembler::insertCallIns(const PoolConstant &constant) {
     if (!constant.isNumeric) {
         Elf32_Sym *sd = eFile.symbolTable.get(constant.symbol);
 
-        // check in second pass if symbol can be reached with PC relative addressing
-        if ((pass == 1 && sd->st_shndx == SHN_UNDEF) || sd->st_shndx == currentSection) {
+        // try to insert absolute symbol into disp
+        if (sd->st_shndx == SHN_ABS && Util::positiveValueFitsInDisp(sd->st_value)) {
+            insertInstruction(CALL, {R0, R0, R0, static_cast<int16_t>(sd->st_value)});
+            return;
+        }
+
+        // check if symbol can be reached with PC relative addressing
+        if (sd->st_shndx == currentSection) {
             int16_t disp = Util::getDisplacement(sd->st_value, locationCounter + INSTRUCTION_LEN_BYTES);
             insertInstruction(CALL, {PC, R0, R0, disp});
             return;
@@ -71,7 +83,6 @@ void Assembler::insertCallIns(const PoolConstant &constant) {
 
     // indirect call needed with pool constant
     Elf32_Addr poolConstantAddr = getPoolConstantAddr(constant);
-
     int16_t offsetToPoolLiteral = Util::getDisplacement(poolConstantAddr,
                                                         locationCounter + WORD_LEN_BYTES); // one forward
     insertInstruction(CALL_IND, {PC, R0, R0, offsetToPoolLiteral});
@@ -90,32 +101,21 @@ void Assembler::insertLoadIns(yytokentype type, const PoolConstant &poolConstant
         return;
     }
 
-    if (!poolConstant.isNumeric) {
+    // only do this for LD_REG and LD_DSP -> regular LD will always use pool value because of code size
+    if (!poolConstant.isNumeric && (type == LD_REG || type == LD_DSP)) {
         // try to load symbol with PC relative addressing or as an absolute symbol
         Elf32_Sym *sd = eFile.symbolTable.get(poolConstant.symbol);
 
-        if (pass == 1 && sd->st_shndx == SHN_UNDEF && !(type == LD_REG || type == LD_DSP)) {
-            // padding for medium LD format
-            IpadTabEntry it;
-            it.address = locationCounter;
-            it.symbol = poolConstant.symbol;
-            it.pad = 1 * INSTRUCTION_LEN_BYTES;
-
-            ipadTabs[currentSection].push_back(it);
-        }
-
         // try to load absolute symbol into disp
-        if ((type == LD_REG || type == LD_DSP) &&
-            sd->st_shndx == SHN_ABS && Util::positiveValueFitsInDisp(sd->st_value)) {
+        if (sd->st_shndx == SHN_ABS && Util::positiveValueFitsInDisp(sd->st_value)) {
             fields.push_back(static_cast<int16_t>(sd->st_value));
             insertInstruction(type, fields);
             return;
         }
 
-        // load symbol relative to PC
-        if ((pass == 1 && sd->st_shndx == SHN_UNDEF) || sd->st_shndx == currentSection) {
+        // try to load symbol relative to PC
+        if (sd->st_shndx == currentSection) {
             int16_t disp = Util::getDisplacement(sd->st_value, locationCounter + INSTRUCTION_LEN_BYTES);
-            fields.push_back(disp);
             if (type == LD_REG) {
                 insertInstruction(LD_REG, {fields[REG_A], PC, disp});
             } else {
@@ -137,10 +137,16 @@ void Assembler::insertLoadIns(yytokentype type, const PoolConstant &poolConstant
             insertInstruction(LD_PCREL, fields); // using REG_B (R0 here)
             break;
         }
-        case LD_DSP: {
-            // error! final symbol value unknown or can't fit into 12 bits!
-            throw runtime_error("Assembler error: memind addressing type with value that cannot fit into displacement");
-        }
+        case LD_DSP:
+            if (pass == 1) {
+                // just increase location counter
+                insertInstruction(NOP);
+                break;
+            } else {
+                // error! final symbol value unknown or can't fit into 12 bits!
+                throw runtime_error(
+                        "Assembler error: memind addressing type with value that cannot fit into displacement");
+            }
         default: {
             // use medium format with the destination register as the temporary register
             int16_t offsetToPoolLiteral = Util::getDisplacement(poolConstantAddr, locationCounter + WORD_LEN_BYTES);
@@ -174,9 +180,10 @@ void Assembler::insertStoreIns(yytokentype type, const PoolConstant &poolConstan
         }
 
         // try to use offset to a symbol with PC relative addressing
-        if ((pass == 1 && sd->st_shndx == SHN_UNDEF) || sd->st_shndx == currentSection) {
+        if (sd->st_shndx == currentSection) {
             int16_t disp = Util::getDisplacement(sd->st_value, locationCounter + INSTRUCTION_LEN_BYTES);
-            insertInstruction(type, {PC, fields[REG_B], fields[REG_C], disp}); // REG_A field is always free + PC disp
+            insertInstruction(type,
+                              {PC, fields[REG_B], fields[REG_C], disp}); // REG_A field is always free + PC disp
             return;
         }
     }
@@ -187,6 +194,9 @@ void Assembler::insertStoreIns(yytokentype type, const PoolConstant &poolConstan
         int16_t offsetToPoolLiteral = Util::getDisplacement(poolConstantAddr, locationCounter + WORD_LEN_BYTES);
 
         insertInstruction(ST_IND, {PC, R0, fields[REG_C], offsetToPoolLiteral});
+    } else if (pass == 1) {
+        // just increase location counter
+        insertInstruction(NOP);
     } else {
         // error! final symbol value unknown or can't fit into 12 bits!
         throw runtime_error("Assembler error: memind addressing type with value that cannot fit into displacement");

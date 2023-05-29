@@ -9,7 +9,6 @@
 #include "../../misc/parser.hpp"
 #include "../common/elf32file/Elf32File.hpp"
 #include "TNSEntry.hpp"
-#include "IpadTabEntry.hpp"
 
 class Assembler {
 public:
@@ -73,10 +72,6 @@ private:
 
     void resolveTNS();
 
-    void resolveIpadTab();
-
-    void increaseAddresses(Elf32_Section sec, Elf32_Word address, Elf32_Word pad);
-
     Elf32_Ehdr elfHeader{};
 
     // output file wrapper
@@ -91,9 +86,6 @@ private:
 
     // EQU entry relocation value for external symbol
     unordered_map<string, Elf32_Rela> equExtRela;
-
-    // Instruction pad table for each section
-    unordered_map<Elf32_Section, vector<IpadTabEntry>> ipadTabs;
 
     uint32_t currentSection = SHN_UNDEF;
     static Elf32_Addr locationCounter;

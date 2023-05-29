@@ -22,12 +22,13 @@
     ld $eight, %r10
     ld $a_lot, %r11
 
-    #ld $0x4, %r12
-    #ld [%r12 + my_counter], %r12
+    ld $my_counter, %r12
+    ld [%r12 + 12], %r12
 
     ld $0x1, %r1
     ld $0x0, %r9
     st %r1, tim_cfg
+
 wait:
     ld my_counter, %r1
     ld $5, %r2
@@ -41,4 +42,6 @@ value_one:
     .word 0xa
 value_two:
     .word 0xb
+value_three:
+    .word 0xc
 .end
