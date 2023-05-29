@@ -7,11 +7,13 @@ void Assembler::resolveIpadTab() {
         Elf32_Section sec = it.first;
         vector<IpadTabEntry> &ipadTab = it.second;
 
+        // sort by descending addresses
         sort(ipadTab.begin(), ipadTab.end(), [](IpadTabEntry &a, IpadTabEntry &b) { return a.address > b.address; });
 
         for (auto &ent: ipadTab) {
             Elf32_Sym *sym = eFile.symbolTable.get(ent.symbol);
-            if (sym->st_shndx != sec) { // need to increase values of all symbols
+            if (sym->st_shndx != sec) {
+                // need to increase values of all symbols
                 Elf32_Shdr &section = eFile.sectionTable.get(sec);
                 section.sh_size += ent.pad;
                 increaseAddresses(sec, ent.address, ent.pad);

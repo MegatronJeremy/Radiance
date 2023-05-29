@@ -1,6 +1,9 @@
 # file: main.s
 .equ tim_cfg, 0xFFFFFF10
 .equ init_sp, 0xFFFFFF00
+.equ eight, four + 0x4
+.equ four, 0x4
+.equ a_lot, 0xFFFFF
 .extern handler
 .section my_code_main
     ld $init_sp, %sp
@@ -9,12 +12,18 @@
 
     # testing addressing modes
     ld $my_counter, %r12
-    ld [%r12 + 4], %r12
+    ld $my_counter, %r4
+    ld [%r12 + four], %r12
+
+    ld $my_counter, %r13
+    ld [%r13 + eight], %r13
+    st %r12, [%r4 + eight]
+    ld [%r4 + eight], %r13
+    ld $eight, %r10
+    ld $a_lot, %r11
 
     #ld $0x4, %r12
     #ld [%r12 + my_counter], %r12
-    ld $my_counter, %r13
-    ld [%r13 + 8], %r13
 
     ld $0x1, %r1
     ld $0x0, %r9
