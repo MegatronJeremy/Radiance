@@ -15,7 +15,7 @@ handler:
     beq %r1, %r2, my_isr_terminal
 # obrada prekida od tajmera
 my_isr_timer:
-    ld $ascii_code , %r1
+    ld $ascii_code, %r1
     st %r1, term_out
     ld $1, %r8
     add %r8, %r9

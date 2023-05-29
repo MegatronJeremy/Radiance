@@ -1,5 +1,7 @@
 #include "../../inc/common/Ins32.hpp"
 
+#include <stdexcept>
+
 const Instruction32::field_setter Instruction32::setOrDefaultParams[] = {
         setOrDefaultRegA,
         setOrDefaultRegB,
@@ -39,11 +41,16 @@ void Instruction32::setOpcode(yytokentype token, Ins32 &ins32) {
             {INT,      INT_OP},
 
             {CALL,     CALL_OP},
+            {CALL_IND, CALL_OP},
 
             {JMP,      JMP_OP},
             {BEQ,      JMP_OP},
             {BNE,      JMP_OP},
             {BGT,      JMP_OP},
+            {JMP_IND,  JMP_OP},
+            {BEQ_IND,  JMP_OP},
+            {BNE_IND,  JMP_OP},
+            {BGT_IND,  JMP_OP},
 
             {XCHG,     XCHG_OP},
 
@@ -62,6 +69,7 @@ void Instruction32::setOpcode(yytokentype token, Ins32 &ins32) {
 
             {ST,       ST_OP},
             {PUSH,     ST_OP},
+            {ST_IND,   ST_OP},
 
             {LD,       LD_OP},
             {LD_REG,   LD_OP},
@@ -83,10 +91,17 @@ void Instruction32::setOpcode(yytokentype token, Ins32 &ins32) {
 
 void Instruction32::setMode(yytokentype token, Ins32 &ins32) {
     static std::unordered_map<yytokentype, uint8_t> modeMap = {
+            {CALL,     MODE_CALL},
+            {CALL_IND, MODE_CALL_IND},
+
             {JMP,      MODE_JMP},
             {BEQ,      MODE_BEQ},
             {BNE,      MODE_BNE},
             {BGT,      MODE_BGT},
+            {JMP_IND,  MODE_JMP_IND},
+            {BEQ_IND,  MODE_BEQ_IND},
+            {BNE_IND,  MODE_BNE_IND},
+            {BGT_IND,  MODE_BGT_IND},
 
             {ADD,      MODE_ADD},
             {SUB,      MODE_SUB},
@@ -103,6 +118,7 @@ void Instruction32::setMode(yytokentype token, Ins32 &ins32) {
 
             {ST,       MODE_ST_REGIND_DSP},
             {PUSH,     MODE_ST_REGIND_PTR_UPD},
+            {ST_IND,   MODE_ST_MEMIND_REGIND_DSP},
 
             {LD,       MODE_LD_REGIND_DSP},
             {LD_PCREL, MODE_LD_REGIND_DSP},
@@ -148,12 +164,12 @@ bool Instruction32::setOrDefaultRegB(yytokentype token, Ins32 &ins32, int16_t fi
     static std::unordered_map<yytokentype, Reg> regBMap = {
             {LD_PCREL, PC},
 
-            {PUSH, R0},
+            {PUSH,     R0},
 
-            {POP, SP},
-            {POP_CS, SP},
+            {POP,      SP},
+            {POP_CS,   SP},
 
-            {NOP, R0}
+            {NOP,      R0}
     };
 
     auto it = regBMap.find(token);
@@ -201,4 +217,19 @@ bool Instruction32::setOrDefaultDisp(yytokentype token, Ins32 &ins32, int16_t fi
         setDisp(ins32, it->second);
         return false;
     }
+}
+
+yytokentype Instruction32::getIndMode(yytokentype token) {
+    static std::unordered_map<yytokentype, yytokentype> modeMap = {
+            {JMP, JMP_IND},
+            {BEQ, BEQ_IND},
+            {BNE, BNE_IND},
+            {BGT, BGT_IND}
+    };
+
+    if (modeMap.find(token) == modeMap.end()) {
+        throw std::runtime_error("Assembler error: indirect mode not found for instruction");
+    }
+
+    return modeMap[token];
 }

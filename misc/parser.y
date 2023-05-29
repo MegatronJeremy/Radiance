@@ -36,6 +36,9 @@
 %token NOP
 %token POP_CS
 %token LD_REG LD_PCREL LD_IMM
+%token ST_IND
+%token CALL_IND
+%token JMP_IND BEQ_IND BNE_IND BGT_IND
 
 %left '+' '-'
 %nonassoc UMINUS

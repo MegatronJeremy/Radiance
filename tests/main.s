@@ -8,8 +8,11 @@
     csrwr %r1, %handler
 
     # testing addressing modes
-    ld $0x4, %r12
-    ld [%r12 + my_counter], %r12
+    ld $my_counter, %r12
+    ld [%r12 + 4], %r12
+
+    #ld $0x4, %r12
+    #ld [%r12 + my_counter], %r12
     ld $my_counter, %r13
     ld [%r13 + 8], %r13
 
@@ -22,7 +25,7 @@ wait:
     bne %r1, %r2, wait
     halt
 .global my_counter
-#.section my_data
+.section my_data
 my_counter:
     .word 0
 value_one:

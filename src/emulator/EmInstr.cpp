@@ -49,8 +49,18 @@ void Emulator::handleInstruction(Elf32_Word nextInstruction) {
             softwareIntrPending = true;
             break;
         case CALL_OP:
-            push(cpu.getGPRX(PC));
-            cpu.setGPRX(PC, cpu.getGPRX(regA) + cpu.getGPRX(regB) + disp);
+            switch (mode) {
+                case MODE_CALL:
+                    push(cpu.getGPRX(PC));
+                    cpu.setGPRX(PC, cpu.getGPRX(regA) + cpu.getGPRX(regB) + disp);
+                    break;
+                case MODE_CALL_IND:
+                    push(cpu.getGPRX(PC));
+                    cpu.setGPRX(PC, loadWordFromMem(cpu.getGPRX(regA) + cpu.getGPRX(regB) + disp));
+                    break;
+                default:
+                    badInstrIntrPending = true;
+            }
             break;
         case JMP_OP:
             switch (mode) {
@@ -69,6 +79,22 @@ void Emulator::handleInstruction(Elf32_Word nextInstruction) {
                 case MODE_JMP:
                 execJump:
                     cpu.setGPRX(PC, cpu.getGPRX(regA) + disp);
+                    break;
+                case MODE_BEQ_IND:
+                    if (cpu.getGPRX(regB) == cpu.getGPRX(regC))
+                        goto execIndJump;
+                    break;
+                case MODE_BNE_IND:
+                    if (cpu.getGPRX(regB) != cpu.getGPRX(regC))
+                        goto execIndJump;
+                    break;
+                case MODE_BGT_IND:
+                    if (static_cast<Elf32_Sword>(cpu.getGPRX(regB)) > static_cast<Elf32_Sword>(cpu.getGPRX(regC)))
+                        goto execIndJump;
+                    break;
+                case MODE_JMP_IND:
+                execIndJump:
+                    cpu.setGPRX(PC, loadWordFromMem(cpu.getGPRX(regA) + disp));
                     break;
                 default:
                     badInstrIntrPending = true;
@@ -141,6 +167,9 @@ void Emulator::handleInstruction(Elf32_Word nextInstruction) {
                     cpu.setGPRX(regA, cpu.getGPRX(regA) + disp);
                     cpu.setGPRX(R0, 0); // in case it was modified
                     storeWordToMem(cpu.getGPRX(regA), cpu.getGPRX(regC));
+                    break;
+                case MODE_ST_MEMIND_REGIND_DSP:
+                    storeWordToMem(loadWordFromMem(cpu.getGPRX(regA) + cpu.getGPRX(regB) + disp), cpu.getGPRX(regC));
                     break;
                 default:
                     badInstrIntrPending = true;

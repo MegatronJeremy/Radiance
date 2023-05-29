@@ -31,23 +31,7 @@ void Assembler::insertJumpIns(yytokentype type, const PoolConstant &constant,
 
     if (!constant.isNumeric) {
         Elf32_Sym *sd = eFile.symbolTable.get(constant.symbol);
-        if (pass == 1 && sd->st_shndx == SHN_UNDEF) {
-            // insert into jump table for size resolution after first pass
-            IpadTabEntry jt;
-            jt.address = locationCounter;
-            jt.symbol = constant.symbol;
 
-            size_t pad;
-            if (type == BGT) pad = 2;
-            else if (type != JMP) pad = 1;
-            else pad = 0;
-            jt.pad = pad * INSTRUCTION_LEN_BYTES;
-
-            // don't insert for jmp - there is no pad
-            if (jt.pad != 0) {
-                ipadTabs[currentSection].push_back(jt);
-            }
-        }
         if ((pass == 1 && sd->st_shndx == SHN_UNDEF) || sd->st_shndx == currentSection) {
             int16_t disp = getDisplacement(sd->st_value, locationCounter + INSTRUCTION_LEN_BYTES);
             insertInstruction(type, {PC, fields[REG_B], fields[REG_C], disp});
@@ -55,23 +39,12 @@ void Assembler::insertJumpIns(yytokentype type, const PoolConstant &constant,
         }
     }
 
-    // code blocks checking jump condition using negation
-    if (type == BEQ) {
-        insertInstruction(BNE, {PC, fields[REG_B], fields[REG_C], 1 * INSTRUCTION_LEN_BYTES}); // skip over code block
-    } else if (type == BNE) {
-        insertInstruction(BEQ, {PC, fields[REG_B], fields[REG_C], 1 * INSTRUCTION_LEN_BYTES});
-    } else if (type == BGT) {
-        // check for two conditions to fulfill negation
-        insertInstruction(BGT, {PC, fields[REG_C], fields[REG_B], 2 * INSTRUCTION_LEN_BYTES}); // invert registers
-        insertInstruction(BEQ, {PC, fields[REG_B], fields[REG_C], 1 * INSTRUCTION_LEN_BYTES}); // skip block
-    }
-
     Elf32_Addr poolConstantAddr = getPoolConstantAddr(constant);
     int16_t offsetToPoolLiteral = getDisplacement(poolConstantAddr,
                                                   locationCounter + WORD_LEN_BYTES); // one forward
 
-    // pseudo-jump using load
-    insertInstruction(LD_PCREL, {PC, R0, offsetToPoolLiteral});
+    // Indirect JMP or BRANCH
+    insertInstruction(Instruction32::getIndMode(type), {PC, fields[REG_B], fields[REG_C], offsetToPoolLiteral});
 }
 
 void Assembler::insertCallIns(const PoolConstant &constant) {
@@ -87,14 +60,8 @@ void Assembler::insertCallIns(const PoolConstant &constant) {
 
     if (!constant.isNumeric) {
         Elf32_Sym *sd = eFile.symbolTable.get(constant.symbol);
-        if (pass == 1 && sd->st_shndx == SHN_UNDEF) {
-            // insert into jump table for size resolution after first pass
-            IpadTabEntry jt;
-            jt.address = locationCounter;
-            jt.symbol = constant.symbol;
-            jt.pad = 4 * INSTRUCTION_LEN_BYTES;
-            ipadTabs[currentSection].push_back(jt);
-        }
+
+        // check in second pass if symbol can be reached with PC relative addressing
         if ((pass == 1 && sd->st_shndx == SHN_UNDEF) || sd->st_shndx == currentSection) {
             int16_t disp = getDisplacement(sd->st_value, locationCounter + INSTRUCTION_LEN_BYTES);
             insertInstruction(CALL, {PC, R0, R0, disp});
@@ -102,25 +69,12 @@ void Assembler::insertCallIns(const PoolConstant &constant) {
         }
     }
 
-    // insert long call
-    int16_t stackR13Offs = -2 * WORD_LEN_BYTES;
-
+    // indirect call needed with pool constant
     Elf32_Addr poolConstantAddr = getPoolConstantAddr(constant);
-
-    insertInstruction(ST, {SP, R0, R13, stackR13Offs}); // store above top of stack (reserve one location)
-
-    // push pc of instruction after jump, before jump
-    insertInstruction(LD_REG, {R13, PC, 3 * INSTRUCTION_LEN_BYTES}); // skip over three instructions
-    insertInstruction(PUSH, {R13}); // push return PC on reserved stack location
-    stackR13Offs += WORD_LEN_BYTES; // because of push
-
-    // restore R13
-    insertInstruction(LD, {R13, SP, R0, stackR13Offs});
 
     int16_t offsetToPoolLiteral = getDisplacement(poolConstantAddr,
                                                   locationCounter + WORD_LEN_BYTES); // one forward
-    // pseudo-jump using load
-    insertInstruction(LD_PCREL, {PC, R0, offsetToPoolLiteral});
+    insertInstruction(CALL_IND, {PC, R0, R0, offsetToPoolLiteral});
 }
 
 void Assembler::insertLoadIns(yytokentype type, const PoolConstant &poolConstant, vector<int16_t> &&fields) {
@@ -140,23 +94,14 @@ void Assembler::insertLoadIns(yytokentype type, const PoolConstant &poolConstant
         // try to load symbol with PC relative addressing
         Elf32_Sym *sd = eFile.symbolTable.get(poolConstant.symbol);
 
-        if (pass == 1 && sd->st_shndx == SHN_UNDEF) {
-            // insert into jump table for size resolution after first pass
-            IpadTabEntry jt;
-            jt.address = locationCounter;
-            jt.symbol = poolConstant.symbol;
+        if (pass == 1 && sd->st_shndx == SHN_UNDEF && type != LD_REG) {
+            // padding for medium format
+            IpadTabEntry it;
+            it.address = locationCounter;
+            it.symbol = poolConstant.symbol;
+            it.pad = 1 * INSTRUCTION_LEN_BYTES;
 
-            if (type == LD_REG) {
-                jt.pad = 0;
-            } else if (fields[REG_B] == R0 || fields[REG_A] != fields[REG_B]) {
-                jt.pad = 1;
-            } else {
-                jt.pad = 3;
-            }
-            if (jt.pad != 0) {
-                jt.pad *= INSTRUCTION_LEN_BYTES;
-                ipadTabs[currentSection].push_back(jt);
-            }
+            ipadTabs[currentSection].push_back(it);
         }
 
         if ((pass == 1 && sd->st_shndx == SHN_UNDEF) || sd->st_shndx == currentSection) {
@@ -180,28 +125,15 @@ void Assembler::insertLoadIns(yytokentype type, const PoolConstant &poolConstant
         fields.push_back(offsetToPoolLiteral);
 
         insertInstruction(LD_PCREL, fields); // using REG_B (R0 here)
-    } else if (fields[REG_B] == R0 || fields[REG_A] != fields[REG_B]) {
+    } else if (fields[REG_B] == R0) {
         // use medium format with the destination register as the temporary register
         int16_t offsetToPoolLiteral = getDisplacement(poolConstantAddr, locationCounter + WORD_LEN_BYTES);
 
         insertInstruction(LD_PCREL, {fields[REG_A], R0, offsetToPoolLiteral});
-        insertInstruction(type, {fields[REG_A], fields[REG_B], fields[REG_A]});
+        insertInstruction(type, {fields[REG_A], R0, fields[REG_A]});
     } else {
-        // long format with temporary register
-        Reg regT = Instruction32::getNextGPR(fields[REG_B]);
-        int16_t stackRTempOffs = -1 * WORD_LEN_BYTES;
-
-        insertInstruction(ST, {SP, R0, regT, stackRTempOffs}); // store above top of stack
-
-        // use an additional register to store symbol value
-        int16_t offsetToPoolLiteral = getDisplacement(poolConstantAddr, locationCounter + WORD_LEN_BYTES);
-        insertInstruction(LD_PCREL, {regT, R0, offsetToPoolLiteral});
-
-        // regC is always free here
-        insertInstruction(type, {fields[REG_A], fields[REG_B], regT});
-
-        // restore RTemp
-        insertInstruction(LD, {regT, SP, R0, stackRTempOffs});
+        // error! final symbol value unknown or can't fit into 12 bits!
+        throw runtime_error("Assembler error: memind addressing type with value that cannot fit into displacement");
     }
 }
 
@@ -221,16 +153,6 @@ void Assembler::insertStoreIns(yytokentype type, const PoolConstant &poolConstan
         // try to use offset of symbol with PC relative addressing
         Elf32_Sym *sd = eFile.symbolTable.get(poolConstant.symbol);
 
-        if (pass == 1 && sd->st_shndx == SHN_UNDEF) {
-            // insert into jump table for size resolution after first pass
-            IpadTabEntry jt;
-            jt.address = locationCounter;
-            jt.symbol = poolConstant.symbol;
-
-            jt.pad = 3 * INSTRUCTION_LEN_BYTES;
-            ipadTabs[currentSection].push_back(jt);
-        }
-
         if ((pass == 1 && sd->st_shndx == SHN_UNDEF) || sd->st_shndx == currentSection) {
             int16_t disp = getDisplacement(sd->st_value, locationCounter + INSTRUCTION_LEN_BYTES);
             insertInstruction(type, {PC, fields[REG_B], fields[REG_C], disp}); // REG_A field is always free + PC disp
@@ -238,17 +160,14 @@ void Assembler::insertStoreIns(yytokentype type, const PoolConstant &poolConstan
         }
     }
 
-    Reg regT = Instruction32::getNextGPR(fields[REG_B]);
+    // else pool needed
+    if (fields[REG_B] == R0) {
+        Elf32_Addr poolConstantAddr = getPoolConstantAddr(poolConstant);
+        int16_t offsetToPoolLiteral = getDisplacement(poolConstantAddr, locationCounter + WORD_LEN_BYTES);
 
-    int16_t stackRTempOffs = -1 * WORD_LEN_BYTES;
-    insertInstruction(ST, {SP, R0, regT, stackRTempOffs}); // store above top of stack
-
-    Elf32_Addr poolConstantAddr = getPoolConstantAddr(poolConstant);
-    int16_t offsetToPoolLiteral = getDisplacement(poolConstantAddr, locationCounter + WORD_LEN_BYTES);
-    insertInstruction(LD_PCREL, {regT, R0, offsetToPoolLiteral});
-
-    insertInstruction(type, {regT, fields[REG_B], fields[REG_C]}); // REG_A field is always free
-
-    // restore RTemp
-    insertInstruction(LD, {regT, SP, R0, stackRTempOffs});
+        insertInstruction(ST_IND, {PC, R0, fields[REG_C], offsetToPoolLiteral});
+    } else {
+        // error! final symbol value unknown or can't fit into 12 bits!
+        throw runtime_error("Assembler error: memind addressing type with value that cannot fit into displacement");
+    }
 }

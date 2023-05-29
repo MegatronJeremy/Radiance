@@ -11,7 +11,7 @@ void Assembler::resolveIpadTab() {
 
         for (auto &ent: ipadTab) {
             Elf32_Sym *sym = eFile.symbolTable.get(ent.symbol);
-            if (sym->st_shndx != sec) { // ned to increase values of all symbols
+            if (sym->st_shndx != sec) { // need to increase values of all symbols
                 Elf32_Shdr &section = eFile.sectionTable.get(sec);
                 section.sh_size += ent.pad;
                 increaseAddresses(sec, ent.address, ent.pad);

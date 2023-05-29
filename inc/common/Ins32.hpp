@@ -74,10 +74,19 @@ enum {
 /* Instruction mode enumerations */
 
 enum {
+    MODE_CALL = 0b0000,
+    MODE_CALL_IND
+};
+
+enum {
     MODE_JMP = 0b0000,
     MODE_BEQ,
     MODE_BNE,
-    MODE_BGT
+    MODE_BGT,
+    MODE_JMP_IND = 0b1000,
+    MODE_BEQ_IND,
+    MODE_BNE_IND,
+    MODE_BGT_IND
 };
 
 enum {
@@ -101,7 +110,8 @@ enum {
 
 enum {
     MODE_ST_REGIND_DSP = 0b0000,
-    MODE_ST_REGIND_PTR_UPD
+    MODE_ST_REGIND_PTR_UPD,
+    MODE_ST_MEMIND_REGIND_DSP
 };
 
 enum {
@@ -124,6 +134,8 @@ public:
 
     // inserted fields: {REG_A, REG_B, REG_C, DISP}
     static Ins32 getInstruction(yytokentype token, const std::vector<int16_t> &fields);
+
+    static yytokentype getIndMode(yytokentype token);
 
     static uint8_t extractOpCode(Ins32 val) {
         return val >> 28;

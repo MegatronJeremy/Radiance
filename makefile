@@ -132,7 +132,7 @@ $(BUILD)/src/common/elf32file/%.o: $(E32_CODE)/%.cpp
 
 clean:
 	rm -rf out
-	rm -rf $(TEST_DIR)/*.o $(TEST_DIR)/*.out $(TEST_DIR)/*.hex
+	find . -type f -regex '.*\.\(o\|out\|hex\)' -delete
 
 
 -include $(AS_DEP) $(RO_DEP) $(LD_DEP) $(EM_DEP) $(COM_DEP) $(E32_DEP) $(MSC_DEP)
