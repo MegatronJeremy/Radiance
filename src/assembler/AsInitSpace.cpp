@@ -3,6 +3,10 @@
 #include <cstring>
 
 void Assembler::initSpaceWithConstant(const string &symbol) {
+    if (currentSection == SHN_UNDEF) {
+        return; // ignore call
+    }
+
     // to be called with .word or at the end of the second pass for the current section, to init all pool values
     if (pass == 1) {
         addSymbolUsage(symbol);
@@ -15,6 +19,10 @@ void Assembler::initSpaceWithConstant(const string &symbol) {
 }
 
 void Assembler::initSpaceWithConstant(Elf32_Word literal) {
+    if (currentSection == SHN_UNDEF) {
+        return; // ignore call
+    }
+
     // to be called with .word or at the end of the second pass for the current section, to init all pool values
     if (pass == 2) {
         // generate no relocation
@@ -24,6 +32,10 @@ void Assembler::initSpaceWithConstant(Elf32_Word literal) {
 }
 
 void Assembler::initAscii(string ascii) {
+    if (currentSection == SHN_UNDEF) {
+        return; // ignore call
+    }
+
     // remove double quotes
     ascii = ascii.substr(1, ascii.size() - 2);
 
