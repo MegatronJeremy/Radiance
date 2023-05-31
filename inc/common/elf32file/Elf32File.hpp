@@ -16,7 +16,7 @@ using namespace std;
 
 struct Elf32File {
 public:
-    void addUndefinedSection();
+    void addUndefinedSym();
 
     void loadFromInputFile(const string &fileName);
 

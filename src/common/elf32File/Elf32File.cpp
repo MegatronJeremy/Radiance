@@ -3,10 +3,9 @@
 #include <cstring>
 #include <iomanip>
 
-void Elf32File::addUndefinedSection() {
+void Elf32File::addUndefinedSym() {
     Elf32_Sym nsd{};
     nsd.st_shndx = SHN_UNDEF;
-    nsd.st_info = ELF32_ST_INFO(STB_LOCAL, STT_SECTION);
 
     symbolTable.insertSymbolDefinition(nsd, "UND");
     Elf32_Shdr nsh{};

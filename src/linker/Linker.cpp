@@ -19,7 +19,7 @@ Linker::Linker(const vector<string> &inputFiles, string outFileName,
     }
 
     // setting up out file
-    outFile.addUndefinedSection();
+    outFile.addUndefinedSym();
 
     if (!execMode) {
         // ignore place defs

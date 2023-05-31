@@ -7,7 +7,7 @@ Elf32_Addr Assembler::locationCounter = 0;
 
 Assembler::Assembler(string outFile) : outFile(std::move(outFile)) {
     // setting up undefined section
-    eFile.addUndefinedSection();
+    eFile.addUndefinedSym();
 
     literalTable.emplace_back();
 
