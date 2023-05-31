@@ -10,14 +10,15 @@
     ld $handler, %r1
     csrwr %r1, %handler
 
-    # testing bad instr interrupts
-    # jmp value_three
-
-    # testing software interrupts
     ld $7, %r2
     ld $1, %r3
 loop:
+    # testing software interrupts
     int
+
+    # testing bad instr interrupts
+    .word 0xFFFFFFFF
+
     sub %r3, %r2
     bgt %r2, %r0, loop
 
@@ -45,8 +46,8 @@ wait:
     ld $5, %r2
     bne %r1, %r2, wait
     halt
-.ascii "Q PREDICTED THIS"
-.skip 100
+.ascii "Q PREDICTED THIS/n"
+.skip 1000
 .global my_counter
 .section my_data
 my_counter:
@@ -57,5 +58,5 @@ value_two:
     .word 0xb
 value_three:
     .word 0xfffffffa
-.ascii "Q PREDICTED THIS"
+.ascii "Q PREDICTED THIS/t"
 .end
