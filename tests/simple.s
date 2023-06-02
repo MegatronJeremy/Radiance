@@ -5,6 +5,10 @@
 .global label
 .global end
 .section text
+    ld $init_sp, %sp
+    ld $handler, %r1
+    csrwr %r1, %handler
+
 	ld $0x20, %r1
 	st %r1, my_data
 	ld $0x30, %r2

@@ -7,4 +7,7 @@ continue:
 	ret
 out:
     jmp label
+.global my_counter
+.section my_data
+my_counter: .word 0
 .end

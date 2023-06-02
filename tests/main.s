@@ -10,8 +10,13 @@
     ld $handler, %r1
     csrwr %r1, %handler
 
+    ld $0x1, %r1
+    st %r1, tim_cfg
+
     ld $7, %r2
     ld $1, %r3
+
+
 loop:
     # testing software interrupts
     int
@@ -37,9 +42,7 @@ loop:
     ld $my_counter, %r12
     ld [%r12 + 12], %r12
 
-    ld $0x1, %r1
     ld $0x0, %r9
-    st %r1, tim_cfg
 
 wait:
     ld my_counter, %r1
@@ -54,9 +57,7 @@ my_counter:
     .word 0
 value_one:
     .word 0xa
-value_two:
-    .word 0xb
-value_three:
-    .word 0xfffffffa
+value_two: .word 0xb
+value_three: .word 0xfffffffa
 .ascii "Q PREDICTED THIS/t"
 .end

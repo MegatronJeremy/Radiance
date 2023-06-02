@@ -5,7 +5,7 @@ void Emulator::storeWordToMem(Elf32_Addr addr, Elf32_Word word) {
         terminalWritePending = true;
     }
 
-    if (addr >= TIM_CFG && addr < TIM_CFG + WORD_LEN_BYTES) {
+    if (addr >= TIM_CFG && addr < TIM_CFG + WORD_LEN_BYTES && word < NUM_TIM_MODES) {
         timerMode = word;
     }
 
