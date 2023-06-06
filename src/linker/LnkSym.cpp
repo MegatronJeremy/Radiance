@@ -39,13 +39,23 @@ void Linker::defineAllSymbols() {
         }
     }
     if (!undefinedDefs.empty()) {
-        string s = "Linker error: symbols without a definition: ";
-        for (auto &it: undefinedDefs) {
-            s += it + " ";
-        }
-        throw runtime_error(s);
-    }
+        if (execMode) {
+            string s = "Linker error: symbols without a definition: ";
+            for (auto &it: undefinedDefs) {
+                s += it + " ";
+            }
+            throw runtime_error(s);
+        } else {
+            // add undefined syms to output
+            for (auto &it: undefinedDefs) {
+                Elf32_Sym sym{};
+                sym.st_shndx = SHN_UNDEF;
+                sym.st_value = ELF32_ST_INFO(STB_LOCAL, STT_NOTYPE);
 
+                outFile.symbolTable.insertSymbolDefinition(sym, it);
+            }
+        }
+    }
 }
 
 void Linker::generateSymbols() {
@@ -53,8 +63,7 @@ void Linker::generateSymbols() {
         for (Elf32_Sym &sym: eFile.symbolTable.symbolDefinitions) {
             string symName = eFile.symbolName(sym);
 
-            if ((ELF32_ST_BIND(sym.st_info) != STB_GLOBAL) ||
-                sym.st_shndx == SHN_UNDEF) {
+            if ((ELF32_ST_BIND(sym.st_info) != STB_GLOBAL) || sym.st_shndx == SHN_UNDEF) {
                 continue; // symbol defined in other section or symbol is not global
             }
 
