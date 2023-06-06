@@ -43,8 +43,19 @@ void Linker::getSectionMappings() {
             sh.sh_addr += placeDefs[sectionName]; // sh_addr starts from offset inside of new section
             sh.sh_size = sectionSizes[sectionName];
 
-            if (newSection) { // add to section table with new section index
+            if (newSection) { // add to section table and symbol table with new section index
                 outFile.sectionTable.add(sh, sectionName);
+
+                Elf32_Sym sym{};
+                sym.st_info = ELF32_ST_INFO(STB_LOCAL, STT_SECTION);
+                sym.st_value = sh.sh_addr;
+                sym.st_shndx = outFile.sectionTable.getSectionIndex(sectionName);
+
+                outFile.symbolTable.insertSymbolDefinition(sym, sectionName);
+
+                // add name index to section table
+                outFile.sectionTable.get(sectionName)->sh_name = outFile.symbolTable.getSymbolIndex(sectionName);
+
                 if (execMode) { // check interval overlap in exec mode
                     intervals.push_back({placeDefs[sectionName], placeDefs[sectionName] + sectionSizes[sectionName]});
                 }

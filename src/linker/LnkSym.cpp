@@ -38,7 +38,7 @@ void Linker::defineAllSymbols() {
             }
         }
     }
-    if (execMode && !undefinedDefs.empty()) {
+    if (!undefinedDefs.empty()) {
         string s = "Linker error: symbols without a definition: ";
         for (auto &it: undefinedDefs) {
             s += it + " ";
@@ -53,7 +53,7 @@ void Linker::generateSymbols() {
         for (Elf32_Sym &sym: eFile.symbolTable.symbolDefinitions) {
             string symName = eFile.symbolName(sym);
 
-            if ((ELF32_ST_TYPE(sym.st_info) != STT_SECTION && ELF32_ST_BIND(sym.st_info) != STB_GLOBAL) ||
+            if ((ELF32_ST_BIND(sym.st_info) != STB_GLOBAL) ||
                 sym.st_shndx == SHN_UNDEF) {
                 continue; // symbol defined in other section or symbol is not global
             }
@@ -67,11 +67,6 @@ void Linker::generateSymbols() {
             }
 
             outFile.symbolTable.insertSymbolDefinition(nsym, symName);
-
-            if (ELF32_ST_TYPE(nsym.st_info) == STT_SECTION) {
-                // section symbol, add name index to section table
-                outFile.sectionTable.get(symName)->sh_name = outFile.symbolTable.getSymbolIndex(symName);
-            }
         }
     }
 }

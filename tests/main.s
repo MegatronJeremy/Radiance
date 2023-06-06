@@ -4,12 +4,14 @@
 .equ eight, four + 0x4
 .equ four, 0x4
 .equ a_lot, 0xFFFFF
+.global main
 .extern handler
 .section my_code_main
     ld $init_sp, %sp
     ld $handler, %r1
     csrwr %r1, %handler
 
+main:
     ld $0x1, %r1
     st %r1, tim_cfg
 
