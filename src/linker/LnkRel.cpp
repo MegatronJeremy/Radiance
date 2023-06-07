@@ -12,6 +12,9 @@ void Linker::generateRelocations(Elf32File &eFile) {
 
             Elf32_Rela outRela = rel;
             outRela.r_offset += sh.sh_addr; // add new section start offset (from zero)
+            if (ELF32_ST_TYPE(outSym->st_info) == STT_SECTION) {
+                outRela.r_addend += static_cast<Elf32_Sword>(sh.sh_addr); // add new section offset, for local file
+            }
             outRela.r_info = ELF32_R_INFO(outSym->st_name, ELF32_R_TYPE(rel.r_info));
 
             Elf32_Section shndx = outFile.sectionTable.getSectionIndex(secName);
